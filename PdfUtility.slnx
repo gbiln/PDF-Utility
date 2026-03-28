@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PdfUtility.App/PdfUtility.App.csproj" />
+    <Project Path="src/PdfUtility.Core/PdfUtility.Core.csproj" />
+    <Project Path="src/PdfUtility.Pdf/PdfUtility.Pdf.csproj" />
+    <Project Path="src/PdfUtility.Scanning/PdfUtility.Scanning.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PdfUtility.App.Tests/PdfUtility.App.Tests.csproj" />
+    <Project Path="tests/PdfUtility.Core.Tests/PdfUtility.Core.Tests.csproj" />
+    <Project Path="tests/PdfUtility.Pdf.Tests/PdfUtility.Pdf.Tests.csproj" />
+  </Folder>
+</Solution>

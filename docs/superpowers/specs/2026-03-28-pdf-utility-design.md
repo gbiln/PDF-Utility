@@ -203,11 +203,18 @@ Persisted to `%AppData%\PdfUtility\settings.json`:
 | Scan DPI | 300 | 150, 300, 600 |
 | Color Mode | Color | Color, Grayscale, BlackAndWhite |
 | PDF Format | Standard | Standard, PdfA |
+| Paper Size | Letter | Letter (8.5×11"), Legal (8.5×14"), Auto-detect |
 | JPEG Quality | 85 | 1–100 slider |
 | Default Save Folder | (last used) | Folder picker |
 | Scanner Backend | Naps2 | Naps2, EpsonNative (future) |
 
-DPI, Color Mode, and PDF Format are exposed as dropdowns in the main toolbar for quick access. All changes persist immediately.
+DPI, Color Mode, PDF Format, and Paper Size are exposed as dropdowns in the main toolbar for quick access. All changes persist immediately.
+
+### Paper Size Handling
+- **Letter** and **Legal** sizes are passed to NAPS2.Sdk's `ScanOptions.PaperSize` so the ADF feeds at the correct length
+- **Auto-detect** uses the scanner's hardware detection where supported by the Epson ET-4850
+- PDF page dimensions are set to match the selected paper size — no cropping or scaling applied
+- Mixed paper sizes in a single batch are not supported; user selects one size per scan session
 
 ---
 

@@ -1,4 +1,6 @@
 // src/PdfUtility.Core/Interfaces/IScannerBackend.cs
+using System.Collections.Generic;
+using System.Threading;
 using PdfUtility.Core.Models;
 
 namespace PdfUtility.Core.Interfaces;

@@ -252,11 +252,12 @@ class ImportedPage : IPageSource
 **Scan sessions:** `%TEMP%\PdfUtility\scan-<session-guid>\`
 - Format: PNG per scanned page
 - Cleanup: on app exit, on explicit session discard, or on app startup for scan session directories older than 7 days
+- When `ScannedPage.ReplaceImage(newPath)` is called, the previous PNG for that page is deleted immediately before the path is updated
 
 **Merge sessions:** `%TEMP%\PdfUtility\merge-<session-guid>\`
 - Created when the user adds the first file to Merge Documents
-- Contains rasterised PNG images extracted from each PDF page via PDFsharp rendering; original image files (JPG, PNG, etc.) are referenced directly and not copied
-- A `MergeSessionService` (in `PdfUtility.Pdf`) owns extraction and cleanup — the Merge Documents ViewModel calls it, not the other way around
+- Contains rasterised PNG images extracted from each PDF page via `Windows.Data.Pdf.PdfDocument` (Windows 10+ built-in API); original image files (JPG, PNG, etc.) are referenced directly and not copied into the merge session directory
+- `MergeSessionService` (in `PdfUtility.Pdf`, depends on `PdfUtility.Core`) owns all extraction and cleanup. It is exposed via an `IMergeSessionService` interface defined in `PdfUtility.Core`; `PdfUtility.App` depends only on the interface, never the concrete class directly
 - Cleanup: when the user clicks "Merge & Save PDF" (success or failure), when the Merge Documents tab is explicitly cleared, on app exit, or on app startup for merge session directories older than 7 days
 
 **Both session types:** JPEG compression applied only at final PDF assembly, never during scanning or import.
@@ -295,9 +296,10 @@ The Settings Dialog (modal, OK/Cancel) controls JPEG Quality, Default Save Folde
 
 ### Paper Size Handling
 - **Letter** and **Legal** sizes are passed to NAPS2.Sdk's `ScanOptions.PaperSize` so the ADF feeds at the correct length
-- **Auto-detect** uses the scanner's hardware detection where supported by the Epson ET-4850
+- **Auto-detect** uses the scanner's hardware detection where supported by the Epson ET-4850; if the hardware does not support detection, NAPS2 falls back to the driver default silently — no error is thrown
 - PDF page dimensions are set to match the selected paper size — no cropping or scaling applied
 - Mixed paper sizes in a single batch are not supported; user selects one size per scan session
+- Toolbar setting changes (DPI, Paper Size, Color Mode) take effect for the next `ScanBatchAsync` call; in-progress or already-completed scans are unaffected
 
 ---
 

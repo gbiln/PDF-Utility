@@ -22,7 +22,10 @@ public class PathToBitmapConverter : IValueConverter
             bmp.Freeze();
             return bmp;
         }
-        catch
+        catch (Exception ex) when (ex is IOException
+                                || ex is NotSupportedException
+                                || ex is InvalidOperationException
+                                || ex is UnauthorizedAccessException)
         {
             return null;
         }

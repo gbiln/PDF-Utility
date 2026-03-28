@@ -231,8 +231,9 @@ class ScannedPage : IPageSource
     int SourceBatch { get; }                // 1 or 2
     bool HasWarning { get; set; }           // partial/damaged flag
 
-    void ReplaceImage(string newPath)       // updates ImagePath, clears HasWarning
+    void ReplaceImage(string newPath)
     {
+        File.Delete(ImagePath);   // delete previous temp PNG immediately
         ImagePath = newPath;
         HasWarning = false;
     }

@@ -41,13 +41,20 @@ PdfUtility.sln
 interface IScannerBackend
 {
     IAsyncEnumerable<ScannedPage> ScanBatchAsync(ScanOptions options);
-    Task<ScannedPage> ScanSingleFlatbedAsync(ScanOptions options);
+    Task<ScannedPage> ScanSingleFlatbedAsync(ScanOptions options);  // throws ScannerException on failure
 }
 
-// PDF assembly
+// Unified page source for PDF assembly (covers both ScannedPage and imported files)
+interface IPageSource
+{
+    string ImagePath { get; }
+    int Rotation { get; set; }
+}
+
+// PDF assembly — accepts any IPageSource (scanned pages or imported image/PDF pages)
 interface IPdfBuilder
 {
-    Task BuildAsync(IEnumerable<ScannedPage> pages, PdfBuildOptions options, string outputPath);
+    Task BuildAsync(IEnumerable<IPageSource> pages, PdfBuildOptions options, string outputPath);
 }
 
 // Settings persistence
@@ -66,6 +73,25 @@ interface IUserSettings
 
 Scans all front-side pages through the ADF (Batch 1), then all back-side pages (Batch 2), and interleaves them into a correctly-ordered document.
 
+#### Session State Machine
+
+```csharp
+enum ScanSessionState
+{
+    Idle,
+    Batch1Scanning,
+    Batch1Paused,       // mid-scan pause (user chose Continue Scanning)
+    Batch1Error,        // feeder/jam error
+    Batch1Complete,
+    Batch2Scanning,
+    Batch2Paused,
+    Batch2Error,
+    Batch2Complete,
+    MergeReady,
+    Saved
+}
+```
+
 #### Workflow
 
 ```
@@ -77,9 +103,10 @@ Idle
               ┌───────────────┼────────────────┐
      [Continue Scanning]  [Done Batch 1]  [Feeder Error]
               │                │                │
-       Batch1Scanning    Batch1Complete    BatchPaused(Error)
-                              │                 │
-                       [Scan Other Side]  [Continue/Rescan/Done]
+       Batch1Paused      Batch1Complete    Batch1Error
+       [new ScanBatchAsync,    │            [see Error Recovery]
+        appends to Batch1]     │
+                        [Scan Other Side]
                               │
                         Batch2Scanning
                               │
@@ -87,27 +114,33 @@ Idle
                               │
               ┌───────────────┼────────────────┐
      [Continue Scanning]  [Done Batch 2]  [Feeder Error]
-                              │
-                        Batch2Complete
+              │                │                │
+       Batch2Paused      Batch2Complete    Batch2Error
+       [new ScanBatchAsync,    │            [see Error Recovery]
+        appends to Batch2]   MergeReady
                               │
                        [Merge Document]
                               │
                            Saved
 ```
 
+**Tab switching:** If the user switches to the Merge Documents tab while a scan session is in progress (any state other than Idle or Saved), scanning is paused and a banner is shown: "You have an active scan session. Return to Scan Double Sided to continue." The session is preserved. Switching back resumes from the current state.
+
+**Session discard:** A **Discard Session** button appears whenever the session is not Idle. Clicking it shows a confirmation dialog: "Discard all scanned pages and start over?" On confirm, all temp files for the session are deleted and state returns to Idle.
+
 #### Scan Controls (left panel, ~220px)
 
 **Batch 1 section:**
-- **Start Scanning Batch 1** — initiates ADF scan, enables live preview
-- **Continue Scanning** — feeds next stack into ADF, appends to Batch 1
-- **Done with Batch 1** — locks Batch 1, unlocks Batch 2 controls
+- **Start Scanning Batch 1** — initiates ADF scan, enables live preview (calls `ScanBatchAsync`, appends pages to Batch1)
+- **Continue Scanning** — feeds next stack into ADF; issues a new `ScanBatchAsync` call, appending results to existing Batch1 list
+- **Done with Batch 1** — locks Batch 1, transitions to `Batch1Complete`, unlocks Batch 2 controls
 
-**Batch 2 section** (disabled until Batch 1 complete):
-- **Scan Other Side** — initiates ADF scan for back sides
-- **Continue Scanning** — appends more back-side pages
-- **Done with Batch 2** — locks Batch 2, unlocks Merge
+**Batch 2 section** (disabled until Batch1Complete):
+- **Scan Other Side** — initiates ADF scan for back sides (calls `ScanBatchAsync`, appends to Batch2)
+- **Continue Scanning** — issues a new `ScanBatchAsync` call, appending to Batch2
+- **Done with Batch 2** — locks Batch 2, transitions to `Batch2Complete` → `MergeReady`
 
-**Final action** (disabled until both batches complete):
+**Final action** (disabled until MergeReady):
 - **Merge Document** — interleaves batches, prompts Save As dialog
 
 #### Page Count Mismatch
@@ -117,23 +150,28 @@ User can proceed or cancel to fix.
 
 #### Live Preview (right panel, 3/4 width)
 - Thumbnails appear as each page completes scanning
-- Each thumbnail shows: page number badge, source label, **Replace** link
+- Each thumbnail shows: page number badge, source label ("Front" for Batch 1, "Back" for Batch 2), **Replace** link
 - Status bar shows current scan progress: "Scanning page 4… (ADF feeding)"
-- Partial/damaged pages flagged with ⚠ badge
+- Partial/damaged pages flagged with ⚠ badge. A page is considered partial/damaged when NAPS2 delivers a `ScanErrorException` mid-batch — the last image received before the error is flagged. Additionally, if the delivered image height is less than 80% of the expected height for the selected paper size at the selected DPI, it is flagged automatically.
 
 #### Page Replacement (Flatbed)
 1. User clicks **Replace** on any thumbnail
-2. App triggers single flatbed scan via `IScannerBackend.ScanSingleFlatbedAsync`
-3. Replaced `ScannedPage` image updated in-place
-4. Thumbnail refreshes immediately
+2. App calls `IScannerBackend.ScanSingleFlatbedAsync`
+3. On success: `ScannedPage.ReplaceImage(newPath)` updates the image path and clears any warning flag; thumbnail refreshes immediately
+4. On failure (scanner offline, timeout, etc.): error dialog shown — "Could not scan replacement page: {reason}. Try again or cancel." The original page is unchanged.
 
 #### Interleaving Logic
+When the user clicks **Merge Document**, Batch 2 is **automatically reversed** before interleaving. This corrects for the physical reality that when the user flips the stack and re-feeds it through the ADF, the back sides come out in reverse order (last sheet first).
+
 ```
+batch2Reversed = Reverse(batch2)
 merged = []
-for i in range(max(len(batch1), len(batch2))):
-    if i < len(batch1): merged.append(batch1[i])
-    if i < len(batch2): merged.append(batch2[i])
+for i in range(max(len(batch1), len(batch2Reversed))):
+    if i < len(batch1):        merged.append(batch1[i])
+    if i < len(batch2Reversed): merged.append(batch2Reversed[i])
 ```
+
+Result for a 4-page document: F1, B1, F2, B2, F3, B3, F4, B4.
 
 ---
 
@@ -142,8 +180,8 @@ for i in range(max(len(batch1), len(batch2))):
 Combines multiple PDFs and/or image files into a single PDF with full page-level reordering.
 
 #### Layout
-- **Left panel (1/4):** File list with add/remove. Accepts PDF, JPG, PNG, TIFF via drag-drop or file browser.
-- **Right panel (3/4):** Draggable page thumbnail grid. Each thumbnail shows page number badge, source file label, and **Delete** button.
+- **Left panel (1/4):** File list with add/remove. Accepts PDF, JPG, PNG, TIFF, BMP via drag-drop or file browser.
+- **Right panel (3/4):** Draggable page thumbnail grid. Each thumbnail shows page number badge, source filename label, and **Delete** button.
 - **Merge & Save PDF** button at bottom of left panel.
 
 #### Page Reordering
@@ -151,6 +189,17 @@ Pages are reordered by dragging thumbnails in the grid. The merge output respect
 
 #### Supported Input Formats
 PDF, JPG, JPEG, PNG, TIFF, BMP
+
+#### Error Handling
+| Error | Behaviour |
+|-------|-----------|
+| Password-protected PDF | Skip file, show banner: "'{filename}' is password-protected and cannot be opened." |
+| Corrupt / truncated PDF | Skip file, show banner: "'{filename}' could not be read and was skipped." |
+| Unreadable image file | Skip file, show banner with filename and reason |
+| Out of disk space during merge | Abort merge, delete partial output, show error dialog |
+| Output path not writable | Show error dialog prompting user to choose a different save location |
+
+Skipped files are highlighted in red in the file list. The user can remove them and retry.
 
 ---
 
@@ -160,25 +209,39 @@ PDF, JPG, JPEG, PNG, TIFF, BMP
 ```csharp
 class ScanSession
 {
-    List<ScannedPage> Batch1 { get; }   // front sides
-    List<ScannedPage> Batch2 { get; }   // back sides
-    List<ScannedPage> Merged { get; }   // interleaved result
-    ScanSessionState State { get; }
+    List<ScannedPage> Batch1 { get; }     // front sides, in scan order
+    List<ScannedPage> Batch2 { get; }     // back sides, in scan order (reversed at merge time)
+    List<ScannedPage> Merged { get; }     // interleaved result, populated on merge
+    ScanSessionState State { get; set; }
 }
 
-class ScannedPage
+class ScannedPage : IPageSource
 {
-    string ImagePath { get; }   // temp PNG on disk
-    int Rotation { get; set; }  // 0 / 90 / 180 / 270
-    int SourceBatch { get; }    // 1 or 2
-    bool HasWarning { get; set; } // partial/damaged flag
+    string ImagePath { get; private set; }  // temp PNG on disk
+    int Rotation { get; set; }              // 0 / 90 / 180 / 270
+    int SourceBatch { get; }                // 1 or 2
+    bool HasWarning { get; set; }           // partial/damaged flag
+
+    void ReplaceImage(string newPath)       // updates ImagePath, clears HasWarning
+    {
+        ImagePath = newPath;
+        HasWarning = false;
+    }
+}
+
+// Used by Merge Documents for imported files
+class ImportedPage : IPageSource
+{
+    string ImagePath { get; }     // extracted page image or original image file path
+    int Rotation { get; set; }
+    string SourceFileName { get; }
 }
 ```
 
 ### Temp Storage
 - Location: `%TEMP%\PdfUtility\<session-guid>\`
 - Format: PNG (lossless, fast write during scan)
-- Cleanup: deleted on app exit or explicit session discard
+- Cleanup: deleted on app exit, on explicit session discard, or on app startup for sessions older than 7 days (startup sweep of orphaned directories)
 - JPEG compression applied only at final PDF assembly
 
 ---
@@ -192,6 +255,7 @@ Persisted to `%AppData%\PdfUtility\settings.json`:
   "scanDpi": 300,
   "colorMode": "Color",
   "pdfFormat": "Standard",
+  "paperSize": "Letter",
   "jpegQuality": 85,
   "defaultSaveFolder": "",
   "scannerBackend": "Naps2"
@@ -208,7 +272,9 @@ Persisted to `%AppData%\PdfUtility\settings.json`:
 | Default Save Folder | (last used) | Folder picker |
 | Scanner Backend | Naps2 | Naps2, EpsonNative (future) |
 
-DPI, Color Mode, PDF Format, and Paper Size are exposed as dropdowns in the main toolbar for quick access. All changes persist immediately.
+DPI, Color Mode, PDF Format, and Paper Size are exposed as dropdowns in the main toolbar for quick access. All toolbar changes persist to `settings.json` immediately.
+
+The Settings Dialog (modal, OK/Cancel) controls JPEG Quality, Default Save Folder, and Scanner Backend. Changes take effect only on OK.
 
 ### Paper Size Handling
 - **Letter** and **Legal** sizes are passed to NAPS2.Sdk's `ScanOptions.PaperSize` so the ADF feeds at the correct length
@@ -239,17 +305,19 @@ DPI, Color Mode, PDF Format, and Paper Size are exposed as dropdowns in the main
 
 On `ScanErrorException` from NAPS2:
 
-1. Scanning pauses immediately
+1. Scanning stops; state transitions to `Batch1Error` or `Batch2Error`
 2. Pages scanned so far are preserved
 3. Error banner displayed: **"Paper jam or feeder error — fix the jam, then choose how to continue"**
-4. Any partial/incomplete last page flagged with ⚠ badge
+4. The last page delivered before the error is flagged with ⚠ badge (may be partial)
 
 **Recovery options:**
 | Option | Behaviour |
 |--------|-----------|
-| Continue Scanning | User fixes jam, ADF resumes from next sheet |
-| Rescan Last Page | Discards last (potentially damaged) page, rescans it |
-| Done with Batch | Accepts pages scanned so far, ends batch |
+| Continue Scanning | User fixes jam; app issues a new `ScanBatchAsync` call appending to the current batch from the next sheet. State returns to `Batch1Scanning` / `Batch2Scanning`. |
+| Rescan Last Page | Discards the last page in the current batch (the potentially damaged one); issues a new `ScanBatchAsync` starting from that sheet. |
+| Done with Batch | Accepts pages scanned so far; transitions to `Batch1Complete` or `Batch2Complete`. |
+
+**Granularity of "Rescan Last Page":** Always refers to the last `ScannedPage` object appended to the current batch list before the error — regardless of how many `Continue Scanning` cycles have occurred. If the error occurred on the very first page of a new `Continue Scanning` invocation (i.e., no new pages were added before the error), "Rescan Last Page" is disabled and only "Continue Scanning" and "Done with Batch" are offered.
 
 If a damaged page can't re-feed via ADF, user can use **Replace** (flatbed scan) on the flagged thumbnail.
 
@@ -270,13 +338,14 @@ Adding the Epson backend requires only implementing `IScannerBackend` — no cha
 
 ### Main Window
 - Tab bar: **Scan Double Sided** | **Merge Documents**
-- Toolbar (top right): DPI dropdown, Color Mode dropdown, PDF Format dropdown, Settings button
+- Toolbar (top right): DPI dropdown, Color Mode dropdown, PDF Format dropdown, Paper Size dropdown, Settings button
 
-### Settings Dialog
+### Settings Dialog (modal)
 - JPEG Quality slider
 - Default Save Folder picker
 - Scanner Backend dropdown
 - About / version info
+- OK / Cancel buttons — changes apply only on OK
 
 ---
 

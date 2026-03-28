@@ -1,4 +1,5 @@
 // tests/PdfUtility.App.Tests/Fakes/FakeScannerBackend.cs
+using System.Runtime.CompilerServices;
 using PdfUtility.Core.Exceptions;
 using PdfUtility.Core.Interfaces;
 using PdfUtility.Core.Models;
@@ -25,16 +26,14 @@ public class FakeScannerBackend : IScannerBackend
         ScanOptions options,
         string sessionDirectory,
         int startingPageIndex,
-        CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var paths = BatchQueue.Count > 0 ? BatchQueue.Dequeue() : new List<string>();
-        int index = startingPageIndex;
         foreach (var path in paths)
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();
             yield return new ScannedPage(path, sourceBatch: 0);
-            index++;
         }
         if (NextScanError is not null)
         {

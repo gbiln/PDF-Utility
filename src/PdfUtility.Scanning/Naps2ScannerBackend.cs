@@ -48,48 +48,40 @@ public class Naps2ScannerBackend : IScannerBackend, IDisposable
         Directory.CreateDirectory(sessionDirectory);
 
         var naps2Options = BuildNaps2Options(options, PaperSource.Feeder);
-
-        // Collect pages via helper to allow try/catch around NAPS2 iteration
-        // (C# forbids yield inside try/catch, so we buffer page paths first).
-        var pages = await ScanBatchInternalAsync(naps2Options, batchNumber, sessionDirectory, startingPageIndex, cancellationToken);
-        foreach (var page in pages)
-            yield return page;
-    }
-
-    private async Task<List<ScannedPage>> ScanBatchInternalAsync(
-        NAPS2.Scan.ScanOptions naps2Options,
-        int batchNumber,
-        string sessionDirectory,
-        int startingPageIndex,
-        CancellationToken cancellationToken)
-    {
-        var results = new List<ScannedPage>();
+        var channel = System.Threading.Channels.Channel.CreateUnbounded<ScannedPage>();
+        Exception? scanException = null;
         int index = startingPageIndex;
-        try
+
+        // Run the scanning loop on a background task so the channel reader can yield
+        // pages as they arrive without being blocked by the try/catch requirement.
+        var scanTask = Task.Run(async () =>
         {
-            await foreach (var image in _controller!.Scan(naps2Options, cancellationToken))
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var imagePath = Path.Combine(sessionDirectory, $"page_{index:D4}.png");
-                try
+                await foreach (var image in _controller!.Scan(naps2Options, cancellationToken))
                 {
-                    image.Save(imagePath, ImageFileFormat.Png, new ImageSaveOptions());
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var imagePath = Path.Combine(sessionDirectory, $"page_{index:D4}.png");
+                    try { image.Save(imagePath, ImageFileFormat.Png, new ImageSaveOptions()); }
+                    finally { image.Dispose(); }
+                    await channel.Writer.WriteAsync(
+                        new ScannedPage(imagePath, sourceBatch: batchNumber), cancellationToken);
+                    index++;
                 }
-                finally
-                {
-                    image.Dispose();
-                }
-                results.Add(new ScannedPage(imagePath, sourceBatch: batchNumber));
-                index++;
             }
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (ScannerException) { throw; }
-        catch (Exception ex)
+            catch (OperationCanceledException) { /* cancellation propagates via channel */ }
+            catch (ScannerException ex) { scanException = ex; }
+            catch (Exception ex) { scanException = new ScannerException($"Scanner error: {ex.Message}", ex); }
+            finally { channel.Writer.Complete(); }
+        }, CancellationToken.None); // Don't cancel the Task.Run itself; let the inner loop handle it
+
+        await foreach (var page in channel.Reader.ReadAllAsync(cancellationToken))
         {
-            throw new ScannerException($"Scanner error: {ex.Message}", ex);
+            yield return page;
         }
-        return results;
+
+        await scanTask; // Propagate any unhandled task exceptions
+        if (scanException != null) throw scanException;
     }
 
     public async Task<ScannedPage> ScanSingleFlatbedAsync(

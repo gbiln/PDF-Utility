@@ -6,10 +6,10 @@ namespace PdfUtility.App;
 
 public partial class MainWindow : FluentWindow
 {
-    public MainWindow(MainViewModel vm, ScanDoubleSidedViewModel scanVm)
+    public MainWindow(MainViewModel vm)
     {
         InitializeComponent();
         DataContext = vm;
-        // ScanDoubleSidedView gets its VM via DI — see ScanDoubleSidedView.xaml.cs
+        // ScanDoubleSidedView DataContext will be set in Task 10
     }
 }

@@ -1,8 +1,106 @@
 <!-- src/PdfUtility.App/Views/ScanDoubleSidedView.xaml -->
 <UserControl x:Class="PdfUtility.App.Views.ScanDoubleSidedView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <TextBlock Text="Scan Double Sided — coming in Task 10"
-               HorizontalAlignment="Center" VerticalAlignment="Center"
-               Foreground="Gray"/>
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:controls="clr-namespace:PdfUtility.App.Views.Controls">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="230"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left: Scan Controls -->
+        <Border Grid.Column="0" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0" Padding="12">
+            <StackPanel>
+
+                <!-- Batch 1 -->
+                <TextBlock Text="BATCH 1 — Front Sides" FontSize="11" FontWeight="SemiBold"
+                           Foreground="#0078D4" Margin="0,0,0,8"/>
+                <ui:Button Content="&#x25B6; Start Scanning Batch 1" HorizontalAlignment="Stretch"
+                           Command="{Binding StartBatch1Command}" Margin="0,0,0,6"
+                           Appearance="Primary"/>
+                <ui:Button Content="&#x2295; Continue Scanning" HorizontalAlignment="Stretch"
+                           Command="{Binding ContinueScanningCommand}" Margin="0,0,0,6"/>
+                <ui:Button Content="&#x2713; Done with Batch 1" HorizontalAlignment="Stretch"
+                           Command="{Binding DoneBatch1Command}" Margin="0,0,0,16"/>
+
+                <!-- Batch 2 -->
+                <TextBlock Text="BATCH 2 — Back Sides" FontSize="11" FontWeight="SemiBold"
+                           Foreground="#0078D4" Margin="0,0,0,8"/>
+                <ui:Button Content="&#x25B6; Scan Other Side" HorizontalAlignment="Stretch"
+                           Command="{Binding ScanOtherSideCommand}" Margin="0,0,0,6"
+                           Appearance="Primary"/>
+                <ui:Button Content="&#x2295; Continue Scanning (B2)" HorizontalAlignment="Stretch"
+                           Command="{Binding ContinueScanningCommand}" Margin="0,0,0,6"/>
+                <ui:Button Content="&#x2713; Done with Batch 2" HorizontalAlignment="Stretch"
+                           Command="{Binding DoneBatch2Command}" Margin="0,0,0,16"/>
+
+                <!-- Merge -->
+                <ui:Button Content="&#x21C4; Merge Document" HorizontalAlignment="Stretch"
+                           Command="{Binding MergeDocumentCommand}"
+                           Appearance="Success" Margin="0,0,0,8"/>
+
+                <!-- Discard -->
+                <ui:Button Content="&#x1F5D1; Discard Session" HorizontalAlignment="Stretch"
+                           Command="{Binding DiscardSessionCommand}"
+                           Appearance="Danger"/>
+
+                <!-- Error recovery banner -->
+                <Border Background="#FFF3E0" CornerRadius="6" Padding="10" Margin="0,16,0,0"
+                        Visibility="{Binding ShowErrorBanner, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap"
+                                   Foreground="#E65100" FontSize="11" Margin="0,0,0,8"/>
+                        <ui:Button Content="&#x25B6; Continue Scanning" HorizontalAlignment="Stretch"
+                                   Command="{Binding ContinueScanningCommand}" Margin="0,0,0,4"/>
+                        <ui:Button Content="&#x21A9; Rescan Last Page" HorizontalAlignment="Stretch"
+                                   Command="{Binding RescanLastPageCommand}" Margin="0,0,0,4"/>
+                        <ui:Button Content="&#x2713; Done with Batch" HorizontalAlignment="Stretch"
+                                   Command="{Binding DoneCurrentBatchCommand}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Mismatch warning -->
+                <Border Background="#FFF8E1" CornerRadius="6" Padding="10" Margin="0,8,0,0"
+                        Visibility="{Binding ShowMismatchWarning, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="{Binding MismatchWarningText}" TextWrapping="Wrap"
+                               Foreground="#F57F17" FontSize="11"/>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Right: Preview -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="12">
+                <ItemsControl ItemsSource="{Binding Thumbnails}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <controls:PageThumbnailControl DataContext="{Binding}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Status bar -->
+            <Border Grid.Row="1" Background="#E3F2FD" Padding="12,6">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#1565C0" FontSize="12"/>
+            </Border>
+        </Grid>
+    </Grid>
 </UserControl>

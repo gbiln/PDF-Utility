@@ -24,6 +24,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(MergeDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(DiscardSessionCommand))]
     [NotifyCanExecuteChangedFor(nameof(RescanLastPageCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DoneCurrentBatchCommand))]
     private ScanSessionState _sessionState = ScanSessionState.Idle;
 
     [ObservableProperty] private string _statusMessage = "Ready to scan.";
@@ -236,4 +237,22 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
 
     // Called by the View after MergeDocumentCommand to actually save the PDF
     public List<ScannedPage> GetMergedPages() => _session.BuildMergedPages();
+
+    [RelayCommand]
+    private async Task ReplacePage(PageThumbnailViewModel thumb)
+    {
+        // Flatbed replacement — implemented in Task 12
+        await Task.CompletedTask;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDoneCurrentBatch))]
+    private Task DoneCurrentBatch()
+    {
+        if (SessionState is ScanSessionState.Batch1Paused or ScanSessionState.Batch1Error)
+            return DoneBatch1();
+        return DoneBatch2();
+    }
+    private bool CanDoneCurrentBatch() =>
+        SessionState is ScanSessionState.Batch1Paused or ScanSessionState.Batch1Error
+                     or ScanSessionState.Batch2Paused or ScanSessionState.Batch2Error;
 }

@@ -13,6 +13,7 @@ namespace PdfUtility.App;
 public partial class App : Application
 {
     private IHost? _host;
+    public IServiceProvider Services => _host!.Services;
 
     protected override async void OnStartup(StartupEventArgs e)
     {

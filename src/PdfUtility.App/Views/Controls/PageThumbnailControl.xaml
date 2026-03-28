@@ -2,7 +2,12 @@
 <UserControl x:Class="PdfUtility.App.Views.Controls.PageThumbnailControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:PdfUtility.App.Converters"
              Width="90" Margin="6">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:PathToBitmapConverter x:Key="PathToBitmap"/>
+    </UserControl.Resources>
     <StackPanel>
         <Grid>
             <!-- Thumbnail image -->

@@ -2,16 +2,23 @@
 using PdfUtility.App.Tests.Fakes;
 using PdfUtility.App.ViewModels;
 using PdfUtility.Core.Exceptions;
+using PdfUtility.Core.Interfaces;
 using PdfUtility.Core.Models;
 
 namespace PdfUtility.App.Tests.ViewModels;
 
 public class ScanDoubleSidedViewModelTests
 {
-    private ScanDoubleSidedViewModel CreateVm(FakeScannerBackend? fake = null)
+    private sealed class FakePdfBuilder : IPdfBuilder
+    {
+        public Task BuildAsync(IEnumerable<IPageSource> pages, PdfBuildOptions options, string outputPath)
+            => Task.CompletedTask;
+    }
+
+    private static ScanDoubleSidedViewModel CreateVm(FakeScannerBackend? fake = null)
     {
         fake ??= new FakeScannerBackend();
-        return new ScanDoubleSidedViewModel(fake, new PdfUtility.Pdf.PdfSharpPdfBuilder(), new PdfUtility.App.Services.InMemoryUserSettings());
+        return new ScanDoubleSidedViewModel(fake, new FakePdfBuilder(), new PdfUtility.App.Services.InMemoryUserSettings());
     }
 
     [Fact]

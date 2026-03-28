@@ -26,11 +26,7 @@ public partial class App : Application
                 services.AddSingleton<IScannerBackend, Naps2ScannerBackend>();
                 services.AddSingleton<IPdfBuilder, PdfSharpPdfBuilder>();
                 services.AddSingleton<MainViewModel>();
-                services.AddSingleton<ScanDoubleSidedViewModel>(sp =>
-                    new ScanDoubleSidedViewModel(
-                        sp.GetRequiredService<IScannerBackend>(),
-                        sp.GetRequiredService<IPdfBuilder>(),
-                        sp.GetRequiredService<IUserSettings>()));
+                services.AddSingleton<ScanDoubleSidedViewModel>();
                 services.AddSingleton<MainWindow>();
             })
             .Build();

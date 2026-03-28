@@ -6,6 +6,7 @@ using PdfUtility.Core.Interfaces;
 using PdfUtility.Core.Models;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 
 namespace PdfUtility.App.ViewModels;
 
@@ -161,9 +162,13 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
             SessionState = ScanSessionState.Saved;
             StatusMessage = $"Saved: {dialog.FileName}";
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             StatusMessage = $"Save failed: {ex.Message}";
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            StatusMessage = $"Save failed (access denied): {ex.Message}";
         }
     }
     private bool CanMergeDocument() => SessionState == ScanSessionState.MergeReady;
@@ -197,7 +202,8 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
             var last = batch[^1];
             if (File.Exists(last.ImagePath)) File.Delete(last.ImagePath);
             batch.RemoveAt(batch.Count - 1);
-            if (Thumbnails.Count > 0) Thumbnails.RemoveAt(Thumbnails.Count - 1);
+            var thumb = Thumbnails.FirstOrDefault(t => t.ScannedPage == last);
+            if (thumb != null) Thumbnails.Remove(thumb);
         }
 
         ShowErrorBanner = false;
@@ -247,7 +253,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
                 // Dispatch to UI thread if available; fall back to direct add (e.g. in tests)
                 var dispatcher = System.Windows.Application.Current?.Dispatcher;
                 if (dispatcher != null)
-                    dispatcher.Invoke(() => Thumbnails.Add(thumb));
+                    await dispatcher.InvokeAsync(() => Thumbnails.Add(thumb));
                 else
                     Thumbnails.Add(thumb);
 

@@ -5,10 +5,6 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:controls="clr-namespace:PdfUtility.App.Views.Controls">
 
-    <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-    </UserControl.Resources>
-
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="230"/>

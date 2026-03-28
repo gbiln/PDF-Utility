@@ -11,7 +11,7 @@ public class ScanDoubleSidedViewModelTests
     private ScanDoubleSidedViewModel CreateVm(FakeScannerBackend? fake = null)
     {
         fake ??= new FakeScannerBackend();
-        return new ScanDoubleSidedViewModel(fake);
+        return new ScanDoubleSidedViewModel(fake, new PdfUtility.Pdf.PdfSharpPdfBuilder(), new PdfUtility.App.Services.InMemoryUserSettings());
     }
 
     [Fact]

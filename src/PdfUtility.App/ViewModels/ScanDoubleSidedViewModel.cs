@@ -12,6 +12,8 @@ namespace PdfUtility.App.ViewModels;
 public partial class ScanDoubleSidedViewModel : ObservableObject
 {
     private readonly IScannerBackend _scanner;
+    private readonly IPdfBuilder _pdfBuilder;
+    private readonly IUserSettings _userSettings;
     private ScanSession _session = new();
     private string _sessionDirectory = string.Empty;
 
@@ -38,9 +40,14 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     // Settings (set by MainViewModel via binding or DI)
     public ScanOptions CurrentScanOptions { get; set; } = new();
 
-    public ScanDoubleSidedViewModel(IScannerBackend scanner)
+    public ScanDoubleSidedViewModel(
+        IScannerBackend scanner,
+        IPdfBuilder pdfBuilder,
+        IUserSettings userSettings)
     {
         _scanner = scanner;
+        _pdfBuilder = pdfBuilder;
+        _userSettings = userSettings;
     }
 
     // ── Commands ──────────────────────────────────────────────────────
@@ -122,11 +129,42 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         SessionState is ScanSessionState.Batch2Paused or ScanSessionState.Batch2Error;
 
     [RelayCommand(CanExecute = nameof(CanMergeDocument))]
-    private Task MergeDocument()
+    private async Task MergeDocument()
     {
-        // Invoked from UI — actual save handled via SaveMergedPdfAsync called from View
-        SessionState = ScanSessionState.Saved;
-        return Task.CompletedTask;
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Save Merged PDF",
+            Filter = "PDF Files (*.pdf)|*.pdf",
+            DefaultExt = ".pdf",
+            FileName = $"scan_{DateTime.Now:yyyyMMdd_HHmmss}.pdf"
+        };
+
+        var prefs = _userSettings.Load();
+        if (!string.IsNullOrEmpty(prefs.DefaultSaveFolder))
+            dialog.InitialDirectory = prefs.DefaultSaveFolder;
+
+        if (dialog.ShowDialog() != true) return;
+
+        StatusMessage = "Building PDF…";
+
+        var mergedPages = GetMergedPages();
+        var options = new PdfBuildOptions
+        {
+            Format = prefs.PdfFormat,
+            JpegQuality = prefs.JpegQuality,
+            PaperSize = prefs.PaperSize
+        };
+
+        try
+        {
+            await _pdfBuilder.BuildAsync(mergedPages, options, dialog.FileName);
+            SessionState = ScanSessionState.Saved;
+            StatusMessage = $"Saved: {dialog.FileName}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Save failed: {ex.Message}";
+        }
     }
     private bool CanMergeDocument() => SessionState == ScanSessionState.MergeReady;
 

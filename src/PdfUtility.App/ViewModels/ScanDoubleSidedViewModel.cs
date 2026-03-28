@@ -23,6 +23,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(DoneBatch2Command))]
     [NotifyCanExecuteChangedFor(nameof(MergeDocumentCommand))]
     [NotifyCanExecuteChangedFor(nameof(DiscardSessionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RescanLastPageCommand))]
     private ScanSessionState _sessionState = ScanSessionState.Idle;
 
     [ObservableProperty] private string _statusMessage = "Ready to scan.";

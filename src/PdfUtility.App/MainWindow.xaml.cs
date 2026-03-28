@@ -1,23 +1,15 @@
-﻿using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+// src/PdfUtility.App/MainWindow.xaml.cs
+using PdfUtility.App.ViewModels;
+using Wpf.Ui.Controls;
 
 namespace PdfUtility.App;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
-    public MainWindow()
+    public MainWindow(MainViewModel vm, ScanDoubleSidedViewModel scanVm)
     {
         InitializeComponent();
+        DataContext = vm;
+        // ScanDoubleSidedView gets its VM via DI — see ScanDoubleSidedView.xaml.cs
     }
 }

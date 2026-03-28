@@ -22,6 +22,11 @@ public class ScanSession
     /// Any pages that remain after the reversal window, and any Batch1 pages
     /// without a matching back, are appended at the end.
     /// </summary>
+    /// <remarks>
+    /// Assumes Batch2 is at most one page longer than Batch1. In the ADF double-sided
+    /// scanning workflow this is always the case: the user feeds the same physical stack
+    /// twice, so counts are equal or differ by at most one due to a misfeed.
+    /// </remarks>
     public List<ScannedPage> BuildMergedPages()
     {
         // Reverse only the ADF-affected window of Batch2; anything beyond is

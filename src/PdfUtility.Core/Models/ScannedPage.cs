@@ -17,6 +17,7 @@ public class ScannedPage : IPageSource
     public void ReplaceImage(string newPath)
     {
         File.Delete(ImagePath);   // delete previous temp PNG immediately
+        // File.Delete is a no-op on Windows if path doesn't exist; ImagePath is always a valid written temp file at this point
         ImagePath = newPath;
         HasWarning = false;
     }

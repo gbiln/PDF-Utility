@@ -87,4 +87,38 @@ public class ScanSessionInterleavingTests
         Assert.Single(merged);
         Assert.Equal("F1", merged[0].ImagePath);
     }
+
+    [Fact]
+    public void Interleave_BothBatchesEmpty_ReturnsEmpty()
+    {
+        var session = new ScanSession();
+        var merged = session.BuildMergedPages();
+        Assert.Empty(merged);
+    }
+
+    [Fact]
+    public void HasPageCountMismatch_EqualCounts_ReturnsFalse()
+    {
+        var session = new ScanSession();
+        session.Batch1.Add(Page("F1", 1));
+        session.Batch2.Add(Page("B1", 2));
+        Assert.False(session.HasPageCountMismatch);
+    }
+
+    [Fact]
+    public void HasPageCountMismatch_UnequalCounts_ReturnsTrue()
+    {
+        var session = new ScanSession();
+        session.Batch1.Add(Page("F1", 1));
+        session.Batch1.Add(Page("F2", 1));
+        session.Batch2.Add(Page("B1", 2));
+        Assert.True(session.HasPageCountMismatch);
+    }
+
+    [Fact]
+    public void HasPageCountMismatch_BothEmpty_ReturnsFalse()
+    {
+        var session = new ScanSession();
+        Assert.False(session.HasPageCountMismatch);
+    }
 }

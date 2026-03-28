@@ -24,6 +24,7 @@ public class FakeScannerBackend : IScannerBackend
 
     public async IAsyncEnumerable<ScannedPage> ScanBatchAsync(
         ScanOptions options,
+        int batchNumber,
         string sessionDirectory,
         int startingPageIndex,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -33,7 +34,7 @@ public class FakeScannerBackend : IScannerBackend
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();
-            yield return new ScannedPage(path, sourceBatch: 0);
+            yield return new ScannedPage(path, sourceBatch: batchNumber);
         }
         if (NextScanError is not null)
         {
@@ -45,6 +46,7 @@ public class FakeScannerBackend : IScannerBackend
 
     public Task<ScannedPage> ScanSingleFlatbedAsync(
         ScanOptions options,
+        int batchNumber,
         string sessionDirectory,
         int pageIndex,
         CancellationToken cancellationToken = default)
@@ -52,7 +54,7 @@ public class FakeScannerBackend : IScannerBackend
         if (FlatbedShouldFail)
             throw new ScannerException("Fake flatbed failure");
         var path = NextFlatbedImagePath ?? "fake_flatbed.png";
-        return Task.FromResult(new ScannedPage(path, sourceBatch: 0));
+        return Task.FromResult(new ScannedPage(path, sourceBatch: batchNumber));
     }
 
     public Task<IReadOnlyList<string>> GetAvailableDevicesAsync() =>

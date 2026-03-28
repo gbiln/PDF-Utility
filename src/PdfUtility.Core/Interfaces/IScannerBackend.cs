@@ -14,6 +14,7 @@ public interface IScannerBackend
     /// </summary>
     IAsyncEnumerable<ScannedPage> ScanBatchAsync(
         ScanOptions options,
+        int batchNumber,
         string sessionDirectory,
         int startingPageIndex,
         CancellationToken cancellationToken = default);
@@ -24,6 +25,7 @@ public interface IScannerBackend
     /// </summary>
     Task<ScannedPage> ScanSingleFlatbedAsync(
         ScanOptions options,
+        int batchNumber,
         string sessionDirectory,
         int pageIndex,
         CancellationToken cancellationToken = default);

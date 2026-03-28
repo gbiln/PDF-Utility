@@ -114,4 +114,38 @@ public class ScanDoubleSidedViewModelTests
 
         Assert.Equal("original.png", thumb.ImagePath); // unchanged
     }
+
+    [Fact]
+    public async Task DoneCurrentBatch_InBatch2Error_TransitionsToMergeReady()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["f1.png"]);
+        var vm = CreateVm(fake);
+        await vm.StartBatch1Command.ExecuteAsync(null);
+        await vm.DoneBatch1Command.ExecuteAsync(null);
+
+        fake.BatchQueue.Enqueue(["b1.png"]);
+        fake.NextScanError = new ScannerException("Jam");
+        await vm.ScanOtherSideCommand.ExecuteAsync(null);
+        Assert.Equal(ScanSessionState.Batch2Error, vm.SessionState);
+
+        await vm.DoneCurrentBatchCommand.ExecuteAsync(null);
+
+        Assert.Equal(ScanSessionState.MergeReady, vm.SessionState);
+    }
+
+    [Fact]
+    public async Task DoneCurrentBatch_InBatch1Error_TransitionsToBatch1Complete()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["f1.png"]);
+        fake.NextScanError = new ScannerException("Jam");
+        var vm = CreateVm(fake);
+        await vm.StartBatch1Command.ExecuteAsync(null);
+        Assert.Equal(ScanSessionState.Batch1Error, vm.SessionState);
+
+        await vm.DoneCurrentBatchCommand.ExecuteAsync(null);
+
+        Assert.Equal(ScanSessionState.Batch1Complete, vm.SessionState);
+    }
 }

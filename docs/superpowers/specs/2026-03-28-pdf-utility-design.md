@@ -44,11 +44,14 @@ interface IScannerBackend
     Task<ScannedPage> ScanSingleFlatbedAsync(ScanOptions options);  // throws ScannerException on failure
 }
 
+// Rotation values — enforced by this enum across all IPageSource implementations
+enum PageRotation { None = 0, CW90 = 90, CW180 = 180, CW270 = 270 }
+
 // Unified page source for PDF assembly (covers both ScannedPage and imported files)
 interface IPageSource
 {
     string ImagePath { get; }
-    int Rotation { get; set; }
+    PageRotation Rotation { get; set; }
 }
 
 // PDF assembly — accepts any IPageSource (scanned pages or imported image/PDF pages)
@@ -124,7 +127,7 @@ Idle
                            Saved
 ```
 
-**Tab switching:** If the user switches to the Merge Documents tab while a scan session is in progress (any state other than Idle or Saved), scanning is paused and a banner is shown: "You have an active scan session. Return to Scan Double Sided to continue." The session is preserved. Switching back resumes from the current state.
+**Tab switching during an active scan:** NAPS2's `ScanBatchAsync` is a streaming ADF loop that cannot be externally paused mid-feed — the ADF will run until it is empty or an error occurs. Tab switching does **not** physically stop the hardware. Instead: if the user switches to Merge Documents while `Batch1Scanning` or `Batch2Scanning` is active, the scan continues in the background, thumbnails continue to accumulate in the Scan tab, and a persistent info banner is shown on the Merge tab: "A scan is in progress — switch to Scan Double Sided to monitor it." All Merge Documents controls remain usable. The Scan tab state machine is unaffected by the tab switch.
 
 **Session discard:** A **Discard Session** button appears whenever the session is not Idle. Clicking it shows a confirmation dialog: "Discard all scanned pages and start over?" On confirm, all temp files for the session are deleted and state returns to Idle.
 
@@ -190,6 +193,12 @@ Pages are reordered by dragging thumbnails in the grid. The merge output respect
 #### Supported Input Formats
 PDF, JPG, JPEG, PNG, TIFF, BMP
 
+#### Session Lifecycle
+- Work in progress (file list, page order) is preserved across tab switches within the same app session
+- State is **not** persisted to disk — closing and reopening the app resets Merge Documents to empty
+- A **Clear** button on the tab discards all files and temp images and resets to empty
+- After a successful "Merge & Save PDF", the file list and page grid are cleared automatically
+
 #### Error Handling
 | Error | Behaviour |
 |-------|-----------|
@@ -217,8 +226,8 @@ class ScanSession
 
 class ScannedPage : IPageSource
 {
-    string ImagePath { get; private set; }  // temp PNG on disk
-    int Rotation { get; set; }              // 0 / 90 / 180 / 270
+    string ImagePath { get; private set; }  // temp PNG in scan session directory
+    PageRotation Rotation { get; set; }
     int SourceBatch { get; }                // 1 or 2
     bool HasWarning { get; set; }           // partial/damaged flag
 
@@ -232,17 +241,25 @@ class ScannedPage : IPageSource
 // Used by Merge Documents for imported files
 class ImportedPage : IPageSource
 {
-    string ImagePath { get; }     // extracted page image or original image file path
-    int Rotation { get; set; }
-    string SourceFileName { get; }
+    string ImagePath { get; }       // rasterised PNG in merge session temp directory
+    PageRotation Rotation { get; set; }
+    string SourceFileName { get; }  // original filename shown as thumbnail label
 }
 ```
 
 ### Temp Storage
-- Location: `%TEMP%\PdfUtility\<session-guid>\`
-- Format: PNG (lossless, fast write during scan)
-- Cleanup: deleted on app exit, on explicit session discard, or on app startup for sessions older than 7 days (startup sweep of orphaned directories)
-- JPEG compression applied only at final PDF assembly
+
+**Scan sessions:** `%TEMP%\PdfUtility\scan-<session-guid>\`
+- Format: PNG per scanned page
+- Cleanup: on app exit, on explicit session discard, or on app startup for scan session directories older than 7 days
+
+**Merge sessions:** `%TEMP%\PdfUtility\merge-<session-guid>\`
+- Created when the user adds the first file to Merge Documents
+- Contains rasterised PNG images extracted from each PDF page via PDFsharp rendering; original image files (JPG, PNG, etc.) are referenced directly and not copied
+- A `MergeSessionService` (in `PdfUtility.Pdf`) owns extraction and cleanup — the Merge Documents ViewModel calls it, not the other way around
+- Cleanup: when the user clicks "Merge & Save PDF" (success or failure), when the Merge Documents tab is explicitly cleared, on app exit, or on app startup for merge session directories older than 7 days
+
+**Both session types:** JPEG compression applied only at final PDF assembly, never during scanning or import.
 
 ---
 

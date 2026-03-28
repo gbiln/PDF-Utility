@@ -83,4 +83,35 @@ public class ScanDoubleSidedViewModelTests
         Assert.Equal(ScanSessionState.Idle, vm.SessionState);
         Assert.Empty(vm.Thumbnails);
     }
+
+    [Fact]
+    public async Task ReplacePage_OnSuccess_UpdatesThumbnailImagePath()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["original.png"]);
+        fake.NextFlatbedImagePath = "replacement.png";
+        var vm = CreateVm(fake);
+        await vm.StartBatch1Command.ExecuteAsync(null);
+
+        var thumb = vm.Thumbnails[0];
+        await vm.ReplacePageCommand.ExecuteAsync(thumb);
+
+        Assert.Equal("replacement.png", thumb.ImagePath);
+        Assert.False(thumb.HasWarning);
+    }
+
+    [Fact]
+    public async Task ReplacePage_OnFailure_LeavesOriginalUnchanged()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["original.png"]);
+        fake.FlatbedShouldFail = true;
+        var vm = CreateVm(fake);
+        await vm.StartBatch1Command.ExecuteAsync(null);
+
+        var thumb = vm.Thumbnails[0];
+        await vm.ReplacePageCommand.ExecuteAsync(thumb);
+
+        Assert.Equal("original.png", thumb.ImagePath); // unchanged
+    }
 }

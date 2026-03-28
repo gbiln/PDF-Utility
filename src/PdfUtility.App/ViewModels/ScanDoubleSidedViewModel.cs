@@ -279,8 +279,26 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     [RelayCommand]
     private async Task ReplacePage(PageThumbnailViewModel thumb)
     {
-        // Flatbed replacement — implemented in Task 12
-        await Task.CompletedTask;
+        if (thumb.ScannedPage is null) return;
+
+        try
+        {
+            StatusMessage = "Scanning replacement page from flatbed…";
+            var replacement = await _scanner.ScanSingleFlatbedAsync(
+                CurrentScanOptions,
+                thumb.ScannedPage.SourceBatch,
+                _sessionDirectory,
+                thumb.PageNumber - 1);
+
+            thumb.ScannedPage.ReplaceImage(replacement.ImagePath);
+            thumb.ImagePath = replacement.ImagePath;
+            thumb.HasWarning = false;
+            StatusMessage = $"Page {thumb.PageNumber} replaced.";
+        }
+        catch (ScannerException ex)
+        {
+            StatusMessage = $"Could not scan replacement page: {ex.Message}";
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanDoneCurrentBatch))]

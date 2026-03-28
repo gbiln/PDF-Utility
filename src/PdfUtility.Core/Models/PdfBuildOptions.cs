@@ -1,7 +1,5 @@
 namespace PdfUtility.Core.Models;
 
-public enum PdfFormat { Standard, PdfA }
-
 public class PdfBuildOptions
 {
     public PdfFormat Format { get; init; } = PdfFormat.Standard;

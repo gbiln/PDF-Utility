@@ -71,7 +71,7 @@ public class PdfSharpPdfBuilderTests : IDisposable
         Assert.True(File.Exists(outputPath));
         Assert.True(new FileInfo(outputPath).Length > 0);
         // Verify page is landscape: load with PdfSharp and check dimensions
-        using var doc = PdfSharp.Pdf.IO.PdfReader.Open(outputPath, PdfSharp.Pdf.IO.PdfDocumentOpenMode.ReadOnly);
+        using var doc = PdfSharp.Pdf.IO.PdfReader.Open(outputPath, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
         var page = doc.Pages[0];
         Assert.True(page.Width > page.Height, $"Expected landscape (Width > Height) but got Width={page.Width}, Height={page.Height}");
     }

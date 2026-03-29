@@ -56,6 +56,8 @@ public class Naps2ScannerBackend : IScannerBackend, IDisposable
     {
         EnsureInitialised();
         Directory.CreateDirectory(sessionDirectory);
+        var batchDir = Path.Combine(sessionDirectory, $"batch{batchNumber}");
+        Directory.CreateDirectory(batchDir);
 
         var naps2Options = BuildNaps2Options(options, PaperSource.Feeder);
         var channel = System.Threading.Channels.Channel.CreateUnbounded<ScannedPage>();
@@ -69,7 +71,7 @@ public class Naps2ScannerBackend : IScannerBackend, IDisposable
                 await foreach (var image in _controller!.Scan(naps2Options, cancellationToken))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var imagePath = Path.Combine(sessionDirectory, $"page_{index:D4}.png");
+                    var imagePath = Path.Combine(batchDir, $"page_{index:D4}.png");
                     try { image.Save(imagePath, ImageFileFormat.Png, new ImageSaveOptions()); }
                     finally { image.Dispose(); }
                     await channel.Writer.WriteAsync(

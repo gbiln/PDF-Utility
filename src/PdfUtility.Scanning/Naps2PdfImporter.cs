@@ -35,7 +35,8 @@ public class Naps2PdfImporter : IPdfImporter, IDisposable
             await foreach (var image in importer.Import(pdfPath, importParams, (NAPS2.Util.ProgressHandler)cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var fileName = $"{safeFileName}_{Guid.NewGuid():N8}_page_{index:D4}.png";
+                var guid8 = Guid.NewGuid().ToString("N")[..8];
+                var fileName = $"{safeFileName}_{guid8}_page_{index:D4}.png";
                 var imagePath = Path.Combine(outputDirectory, fileName);
                 try
                 {

@@ -139,6 +139,7 @@ public class ScanDoubleSidedViewModelTests
         fake.BatchQueue.Enqueue(["f1.png"]);
         var vm = CreateVm(fake);
         vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.DoubleSided;
         await vm.StartBatch1Command.ExecuteAsync(null);
         await vm.DoneBatch1Command.ExecuteAsync(null);
 

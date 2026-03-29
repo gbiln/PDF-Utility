@@ -193,7 +193,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         {
             Format = PdfFormat,
             JpegQuality = 85,
-            PaperSize = PaperSize.AutoDetect
+            PaperSize = PaperSize.AutoDetect  // scanner uses PaperSize for feed control; PDF derives dimensions from each image's own metadata
         };
 
         try

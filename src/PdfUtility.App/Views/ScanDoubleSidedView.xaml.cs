@@ -9,8 +9,11 @@ public partial class ScanDoubleSidedView : System.Windows.Controls.UserControl
     public ScanDoubleSidedView()
     {
         InitializeComponent();
-        // Resolve ViewModel from DI when running in the real app
         if (System.Windows.Application.Current is App app)
-            DataContext = app.Services.GetRequiredService<ScanDoubleSidedViewModel>();
+        {
+            var vm = app.Services.GetRequiredService<ScanDoubleSidedViewModel>();
+            DataContext = vm;
+            Loaded += (_, _) => vm.RefreshDevicesCommand.Execute(null);
+        }
     }
 }

@@ -352,7 +352,8 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         }
     }
 
-    // Called by the View after MergeDocumentCommand to actually save the PDF
+    // Used by tests to verify session interleaving logic. MergeDocument() uses Thumbnails order instead
+    // (which reflects any user reordering/removals done before merging).
     public List<ScannedPage> GetMergedPages() => _session.BuildMergedPages();
 
     private void BuildMergedThumbnails()

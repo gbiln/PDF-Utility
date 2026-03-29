@@ -35,6 +35,7 @@ public partial class MergeDocumentsViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(LoadPagesCommand))]
     [NotifyCanExecuteChangedFor(nameof(MergeCommand))]
     [NotifyCanExecuteChangedFor(nameof(DiscardSessionCommand))]
+    [NotifyPropertyChangedFor(nameof(IsShowingFileList))]
     private MergeSessionState _sessionState = MergeSessionState.Idle;
 
     [ObservableProperty]
@@ -57,6 +58,10 @@ public partial class MergeDocumentsViewModel : ObservableObject
 
     public bool IsPreviewOpen => PreviewPage != null;
     public bool IsNotPreviewOpen => PreviewPage == null;
+
+    // True when the file list should be shown in the main content area (before loading)
+    public bool IsShowingFileList =>
+        SessionState is MergeSessionState.Idle or MergeSessionState.FilesQueued;
 
     [ObservableProperty] private bool _isLoadingPages;
 

@@ -6,97 +6,44 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="240"/>
+            <ColumnDefinition Width="180"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Left: dark sidebar — file queue -->
+        <!-- Left: dark sidebar — action buttons only -->
         <Border Grid.Column="0" Background="{StaticResource AppSidebarBg}" Padding="12">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <!-- Header buttons -->
-                <StackPanel Grid.Row="0">
-                    <TextBlock Text="PDF FILES" Style="{StaticResource SidebarLabel}"/>
-                    <!-- Click handler opens OpenFileDialog in code-behind; disabled via DataTrigger -->
-                    <Button Content="+ Add Files"
-                            HorizontalAlignment="Stretch"
-                            Click="AddFilesButton_Click"
-                            Margin="0,0,0,8">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource AccentButton}">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SessionState}" Value="LoadingPages">
-                                        <Setter Property="IsEnabled" Value="False"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding SessionState}" Value="Merging">
-                                        <Setter Property="IsEnabled" Value="False"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                </StackPanel>
-
-                <!-- File list -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,8">
-                    <ItemsControl ItemsSource="{Binding FileQueue}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Padding="6,4" Margin="0,1">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
-                                                   Foreground="{StaticResource AppSidebarText}"
-                                                   FontSize="12" VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <Button Grid.Column="1" Content="↑" Width="22" Height="22"
-                                                Style="{StaticResource SidebarButton}"
-                                                Padding="2"
-                                                Command="{Binding DataContext.MoveFileUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button Grid.Column="2" Content="↓" Width="22" Height="22"
-                                                Style="{StaticResource SidebarButton}"
-                                                Padding="2"
-                                                Command="{Binding DataContext.MoveFileDownCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button Grid.Column="3" Content="✕" Width="22" Height="22"
-                                                Style="{StaticResource DangerButton}"
-                                                Padding="2"
-                                                Command="{Binding DataContext.RemoveFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-
-                <!-- Bottom action buttons -->
-                <StackPanel Grid.Row="2">
-                    <Button Content="Load Pages"
-                            Style="{StaticResource AccentButton}"
-                            HorizontalAlignment="Stretch"
-                            Command="{Binding LoadPagesCommand}"
-                            Margin="0,0,0,6"/>
-                    <Button Content="Discard"
-                            Style="{StaticResource DangerButton}"
-                            HorizontalAlignment="Stretch"
-                            Command="{Binding DiscardSessionCommand}"/>
-                </StackPanel>
-            </Grid>
+            <StackPanel>
+                <TextBlock Text="FILES" Style="{StaticResource SidebarLabel}"/>
+                <Button Content="+ Add Files"
+                        HorizontalAlignment="Stretch"
+                        Click="AddFilesButton_Click"
+                        Margin="0,0,0,6">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource AccentButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SessionState}" Value="LoadingPages">
+                                    <Setter Property="IsEnabled" Value="False"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SessionState}" Value="Merging">
+                                    <Setter Property="IsEnabled" Value="False"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="Load Pages"
+                        Style="{StaticResource AccentButton}"
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding LoadPagesCommand}"
+                        Margin="0,0,0,6"/>
+                <Button Content="Discard"
+                        Style="{StaticResource DangerButton}"
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding DiscardSessionCommand}"/>
+            </StackPanel>
         </Border>
 
-        <!-- Right: light canvas — page editor -->
+        <!-- Right: light canvas -->
         <Grid Grid.Column="1" Background="{StaticResource AppCanvasBg}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -104,12 +51,23 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Toolbar row -->
+            <!-- Toolbar -->
             <Border Grid.Row="0" Background="{StaticResource AppToolbarBg}" Padding="12,8">
                 <DockPanel>
-                    <TextBlock Text="Page Editor" Foreground="{StaticResource AppToolbarText}"
+                    <TextBlock Foreground="{StaticResource AppToolbarText}"
                                FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
-                               DockPanel.Dock="Left"/>
+                               DockPanel.Dock="Left">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Page Editor"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsShowingFileList}" Value="True">
+                                        <Setter Property="Text" Value="File Queue"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                     <Button Content="⇄  Merge PDF"
                             Style="{StaticResource AccentButton}"
                             Command="{Binding MergeCommand}"
@@ -118,89 +76,163 @@
                 </DockPanel>
             </Border>
 
-            <!-- Page grid area + loading indicator + preview overlay -->
+            <!-- Main content area -->
             <Grid Grid.Row="1">
-                <!-- Loading indicator -->
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Visibility="{Binding IsLoadingPages, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Text="Loading pages…" Foreground="#888" FontSize="14"/>
-                </StackPanel>
 
-                <!-- Empty state hint -->
-                <TextBlock Text="Add PDF files and click 'Load Pages' to begin."
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Foreground="#AAAAAA" FontSize="14">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Visibility" Value="Collapsed"/>
+                <!-- FILE LIST VIEW — shown when Idle or FilesQueued -->
+                <Grid Visibility="{Binding IsShowingFileList, Converter={StaticResource BoolToVisibility}}">
+
+                    <!-- Empty state hint -->
+                    <TextBlock Text="Click '+ Add Files' to add PDF files to the queue."
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="#AAAAAA" FontSize="14">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding FileQueue.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <!-- File list using ListView -->
+                    <ListView ItemsSource="{Binding FileQueue}"
+                              Background="Transparent" BorderThickness="0"
+                              Margin="12" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="#" Width="36">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=ListViewItem},
+                                                Path=(ItemsControl.AlternationIndex)}"
+                                                       Foreground="#888" FontSize="12" VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="File Name" Width="400">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FileName}" FontSize="13"
+                                                       VerticalAlignment="Center" TextWrapping="NoWrap"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Path" Width="300">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FilePath}" FontSize="11"
+                                                       Foreground="#888" VerticalAlignment="Center"
+                                                       TextWrapping="NoWrap"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="" Width="110">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="↑" Width="28" Height="24"
+                                                        Style="{StaticResource SidebarButton}"
+                                                        Padding="4,2" Margin="0,0,2,0"
+                                                        Command="{Binding DataContext.MoveFileUpCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="↓" Width="28" Height="24"
+                                                        Style="{StaticResource SidebarButton}"
+                                                        Padding="4,2" Margin="0,0,2,0"
+                                                        Command="{Binding DataContext.MoveFileDownCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="✕" Width="28" Height="24"
+                                                        Style="{StaticResource DangerButton}"
+                                                        Padding="4,2"
+                                                        Command="{Binding DataContext.RemoveFileCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+
+                <!-- PAGE GRID — shown when LoadingPages, PagesLoaded, or Merging -->
+                <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding Pages.Count}" Value="0">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding IsLoadingPages}" Value="True">
+                                <DataTrigger Binding="{Binding IsShowingFileList}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+                    </Grid.Style>
 
-                <!-- Page grid (not preview open) -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12"
-                              Visibility="{Binding IsNotPreviewOpen, Converter={StaticResource BoolToVisibility}}">
-                    <ItemsControl ItemsSource="{Binding Pages}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <!-- Tag passes the ViewModel to the ContextMenu (which is outside the visual tree) -->
-                                <Button Background="Transparent" BorderThickness="0"
-                                        Padding="0" Cursor="Hand"
-                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        Command="{Binding DataContext.OpenPreviewCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}">
-                                    <Button.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Move to Beginning"
-                                                      Command="{Binding PlacementTarget.Tag.MovePageToBeginningCommand,
-                                                          RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                      CommandParameter="{Binding}"/>
-                                            <MenuItem Header="Move to End"
-                                                      Command="{Binding PlacementTarget.Tag.MovePageToEndCommand,
-                                                          RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                      CommandParameter="{Binding}"/>
-                                            <Separator/>
-                                            <MenuItem Header="Remove Page"
-                                                      Command="{Binding PlacementTarget.Tag.RemovePageCommand,
-                                                          RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                      CommandParameter="{Binding}"/>
-                                        </ContextMenu>
-                                    </Button.ContextMenu>
-                                    <controls:PageThumbnailControl DataContext="{Binding}"
-                                                                   ShowReplaceLink="False"/>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                    <!-- Loading indicator -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Visibility="{Binding IsLoadingPages, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="Loading pages…" Foreground="#888" FontSize="14"/>
+                    </StackPanel>
 
-                <!-- Full-page preview overlay (modal — covers page grid) -->
-                <Grid Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibility}}">
-                    <Grid.Background>
-                        <SolidColorBrush Color="Black" Opacity="0.75"/>
-                    </Grid.Background>
-                    <Button Content="✕  Close Preview"
-                            Command="{Binding ClosePreviewCommand}"
-                            HorizontalAlignment="Right" VerticalAlignment="Top"
-                            Margin="8" Padding="8,4" Cursor="Hand"
-                            Panel.ZIndex="1"/>
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                                  Margin="0,36,0,0">
-                        <Image Source="{Binding PreviewPage.ImagePath, Converter={StaticResource PathToBitmap}, ConverterParameter=1200}"
-                               Stretch="Uniform" Margin="16"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <!-- Page grid (not preview open) -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12"
+                                  Visibility="{Binding IsNotPreviewOpen, Converter={StaticResource BoolToVisibility}}">
+                        <ItemsControl ItemsSource="{Binding Pages}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Background="Transparent" BorderThickness="0"
+                                            Padding="0" Cursor="Hand"
+                                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            Command="{Binding DataContext.OpenPreviewCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Move to Beginning"
+                                                          Command="{Binding PlacementTarget.Tag.MovePageToBeginningCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}"/>
+                                                <MenuItem Header="Move to End"
+                                                          Command="{Binding PlacementTarget.Tag.MovePageToEndCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}"/>
+                                                <Separator/>
+                                                <MenuItem Header="Remove Page"
+                                                          Command="{Binding PlacementTarget.Tag.RemovePageCommand,
+                                                              RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding}"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                        <controls:PageThumbnailControl DataContext="{Binding}"
+                                                                       ShowReplaceLink="False"/>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </ScrollViewer>
+
+                    <!-- Full-page preview overlay -->
+                    <Grid Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.Background>
+                            <SolidColorBrush Color="Black" Opacity="0.75"/>
+                        </Grid.Background>
+                        <Button Content="✕  Close Preview"
+                                Command="{Binding ClosePreviewCommand}"
+                                HorizontalAlignment="Right" VerticalAlignment="Top"
+                                Margin="8" Padding="8,4" Cursor="Hand"
+                                Panel.ZIndex="1"/>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                      Margin="0,36,0,0">
+                            <Image Source="{Binding PreviewPage.ImagePath, Converter={StaticResource PathToBitmap}, ConverterParameter=1200}"
+                                   Stretch="Uniform" Margin="16"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
             </Grid>
 

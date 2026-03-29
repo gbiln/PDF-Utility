@@ -7,6 +7,7 @@ using PdfUtility.Core.Models;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace PdfUtility.App.ViewModels;
 
@@ -302,7 +303,8 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     private async Task RunScanBatchAsync(
         int targetBatch,
         ScanSessionState pausedState,
-        ScanSessionState errorState)
+        ScanSessionState errorState,
+        CancellationToken cancellationToken = default)
     {
         var batch = targetBatch == 1 ? _session.Batch1 : _session.Batch2;
         int startIndex = batch.Count; // preserve count across Continue calls
@@ -312,7 +314,15 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
             await foreach (var page in _scanner.ScanBatchAsync(
                 BuildCurrentScanOptions(), targetBatch, _sessionDirectory, startIndex))
             {
-                // page.SourceBatch is already set correctly by the scanner
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // AutoDetect: silently skip blank pages (mean brightness ≥ 240/255)
+                if (ScanMode == ScanMode.AutoDetect && IsBlankPage(page.ImagePath))
+                {
+                    try { File.Delete(page.ImagePath); } catch { }
+                    continue;
+                }
+
                 batch.Add(page);
 
                 var thumb = new PageThumbnailViewModel
@@ -428,6 +438,35 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     {
         for (int i = 0; i < Thumbnails.Count; i++)
             Thumbnails[i].PageNumber = i + 1;
+    }
+
+    /// <summary>
+    /// Returns true if the image at <paramref name="imagePath"/> is effectively blank
+    /// (mean pixel brightness ≥ <paramref name="threshold"/> out of 255).
+    /// Threshold 240 ≈ 94% white — catches empty pages from ADF double-feed.
+    /// </summary>
+    private static bool IsBlankPage(string imagePath, byte threshold = 240)
+    {
+        try
+        {
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri(imagePath, UriKind.Absolute);
+            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+
+            int stride = bmp.PixelWidth * 4; // BGRA
+            var pixels = new byte[bmp.PixelHeight * stride];
+            bmp.CopyPixels(pixels, stride, 0);
+
+            long sum = 0;
+            for (int i = 0; i < pixels.Length; i += 4)
+                sum += (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+
+            return (sum / (pixels.Length / 4)) >= threshold;
+        }
+        catch { return false; } // if image unreadable, don't skip
     }
 
     [RelayCommand(CanExecute = nameof(CanDoneCurrentBatch))]

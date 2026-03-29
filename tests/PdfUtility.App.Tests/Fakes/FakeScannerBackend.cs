@@ -67,7 +67,7 @@ public class FakeScannerBackend : IScannerBackend
         CancellationToken cancellationToken = default)
     {
         if (FlatbedShouldFail)
-            throw new ScannerException("Fake flatbed failure");
+            return Task.FromException<ScannedPage>(new ScannerException("Fake flatbed failure"));
         var path = NextFlatbedImagePath ?? "fake_flatbed.png";
         return Task.FromResult(new ScannedPage(path, sourceBatch: batchNumber));
     }
@@ -75,7 +75,7 @@ public class FakeScannerBackend : IScannerBackend
     public async Task<IReadOnlyList<string>> GetDevicesAsync(CancellationToken cancellationToken = default)
     {
         if (GetDevicesGate is { } gate)
-            await gate.Task;
+            await gate.Task.WaitAsync(cancellationToken);
         if (GetDevicesShouldFail)
             throw new InvalidOperationException("Simulated device enumeration failure");
         return SimulatedDevices.AsReadOnly();

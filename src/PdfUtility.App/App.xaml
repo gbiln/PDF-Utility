@@ -9,9 +9,92 @@
                 <ui:ThemesDictionary Theme="Light" />
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
+
             <!-- Global converters — accessible from all views and UserControls -->
             <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
             <converters:PathToBitmapConverter x:Key="PathToBitmap"/>
+
+            <!-- Acrobat-inspired color palette -->
+            <SolidColorBrush x:Key="AppToolbarBg" Color="#1E1E1E"/>
+            <SolidColorBrush x:Key="AppSidebarBg" Color="#2D2D2D"/>
+            <SolidColorBrush x:Key="AppCanvasBg"  Color="#F5F5F5"/>
+            <SolidColorBrush x:Key="AppAccent"    Color="#D42B2B"/>
+            <SolidColorBrush x:Key="AppAccentHover" Color="#B02020"/>
+            <SolidColorBrush x:Key="AppSidebarText" Color="#E0E0E0"/>
+            <SolidColorBrush x:Key="AppToolbarText" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="AppThumbnailBorder" Color="#CCCCCC"/>
+
+            <!-- Sidebar section label -->
+            <Style x:Key="SidebarLabel" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="#9E9E9E"/>
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Margin" Value="0,12,0,6"/>
+            </Style>
+
+            <!-- Sidebar flat button -->
+            <Style x:Key="SidebarButton" TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{StaticResource AppSidebarText}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="10,7"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}" CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="#3A3A3A"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Foreground" Value="#666666"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Primary accent button (red) -->
+            <Style x:Key="AccentButton" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource AppAccent}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="14,8"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}" CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="{StaticResource AppAccentHover}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="bd" Property="Background" Value="#888888"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Danger button (discard) -->
+            <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource SidebarButton}">
+                <Setter Property="Foreground" Value="#FF6B6B"/>
+            </Style>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

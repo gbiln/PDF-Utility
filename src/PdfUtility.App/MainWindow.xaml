@@ -1,0 +1,53 @@
+<ui:FluentWindow x:Class="PdfUtility.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:vm="clr-namespace:PdfUtility.App.ViewModels"
+        xmlns:views="clr-namespace:PdfUtility.App.Views"
+        Title="PDF Utility" Width="1100" Height="720"
+        MinWidth="900" MinHeight="600">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <ui:TitleBar Grid.Row="0" Title="PDF Utility">
+            <ui:TitleBar.TrailingContent>
+                <StackPanel Orientation="Horizontal" Margin="0,0,8,0" VerticalAlignment="Center">
+                    <TextBlock Text="DPI:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox ItemsSource="{Binding DpiOptions}"
+                              SelectedItem="{Binding ScanDpi}"
+                              Width="70" Margin="0,0,12,0"/>
+                    <TextBlock Text="Color:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox ItemsSource="{Binding ColorModeOptions}"
+                              SelectedItem="{Binding ColorMode}"
+                              Width="100" Margin="0,0,12,0"/>
+                    <TextBlock Text="PDF:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox ItemsSource="{Binding PdfFormatOptions}"
+                              SelectedItem="{Binding PdfFormat}"
+                              Width="90" Margin="0,0,12,0"/>
+                    <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox ItemsSource="{Binding PaperSizeOptions}"
+                              SelectedItem="{Binding PaperSize}"
+                              Width="90" Margin="0,0,12,0"/>
+                    <ui:Button Content="⚙ Settings" Margin="0,0,4,0"/>
+                </StackPanel>
+            </ui:TitleBar.TrailingContent>
+        </ui:TitleBar>
+
+        <!-- Tab content -->
+        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}">
+            <TabItem Header="Scan Double Sided">
+                <views:ScanDoubleSidedView/>
+            </TabItem>
+            <TabItem Header="Merge Documents">
+                <TextBlock Text="Merge Documents — coming in Plan 2"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="Gray"/>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</ui:FluentWindow>

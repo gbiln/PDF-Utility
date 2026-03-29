@@ -23,22 +23,21 @@ public class PdfSharpPdfBuilder : IPdfBuilder
             {
                 using var xImage = XImage.FromFile(source.ImagePath);
 
-                var imageWidth = xImage.PointWidth;
-                var imageHeight = xImage.PointHeight;
+                // Portrait page dimensions in points.
+                // For AutoDetect, derive from the image's own DPI metadata; otherwise use paper size.
+                double drawW = options.PaperSize == PaperSize.AutoDetect
+                    ? xImage.PointWidth
+                    : PaperWidthPt(options.PaperSize);
+                double drawH = options.PaperSize == PaperSize.AutoDetect
+                    ? xImage.PointHeight
+                    : PaperHeightPt(options.PaperSize);
 
                 var page = document.AddPage();
 
                 // For 90°/270° rotations the PDF page must be landscape to fit the rotated image
-                if (source.Rotation == PageRotation.CW90 || source.Rotation == PageRotation.CW270)
-                {
-                    page.Width = XUnit.FromPoint(imageHeight);
-                    page.Height = XUnit.FromPoint(imageWidth);
-                }
-                else
-                {
-                    page.Width = XUnit.FromPoint(imageWidth);
-                    page.Height = XUnit.FromPoint(imageHeight);
-                }
+                bool isLandscape = source.Rotation == PageRotation.CW90 || source.Rotation == PageRotation.CW270;
+                page.Width  = XUnit.FromPoint(isLandscape ? drawH : drawW);
+                page.Height = XUnit.FromPoint(isLandscape ? drawW : drawH);
 
                 using var gfx = XGraphics.FromPdfPage(page);
                 switch (source.Rotation)
@@ -50,7 +49,7 @@ public class PdfSharpPdfBuilder : IPdfBuilder
                         // Translate to top-right corner, then rotate CW 90°
                         gfx.TranslateTransform(page.Width.Point, 0);
                         gfx.RotateAtTransform(90, new XPoint(0, 0));
-                        gfx.DrawImage(xImage, 0, 0, imageWidth, imageHeight);
+                        gfx.DrawImage(xImage, 0, 0, drawW, drawH);
                         break;
                     case PageRotation.CW180:
                         // Translate to bottom-right corner, then rotate 180°
@@ -62,7 +61,7 @@ public class PdfSharpPdfBuilder : IPdfBuilder
                         // Translate to bottom-left corner, then rotate CW 270° (= CCW 90°)
                         gfx.TranslateTransform(0, page.Height.Point);
                         gfx.RotateAtTransform(270, new XPoint(0, 0));
-                        gfx.DrawImage(xImage, 0, 0, imageWidth, imageHeight);
+                        gfx.DrawImage(xImage, 0, 0, drawW, drawH);
                         break;
                 }
             }
@@ -77,4 +76,16 @@ public class PdfSharpPdfBuilder : IPdfBuilder
             document.Save(outputPath);
         });
     }
+
+    private static double PaperWidthPt(PaperSize size) => size switch
+    {
+        PaperSize.Legal => 612,   // 8.5" × 72
+        _               => 612,   // Letter: 8.5" × 72
+    };
+
+    private static double PaperHeightPt(PaperSize size) => size switch
+    {
+        PaperSize.Legal => 1008,  // 14" × 72
+        _               => 792,   // Letter: 11" × 72
+    };
 }

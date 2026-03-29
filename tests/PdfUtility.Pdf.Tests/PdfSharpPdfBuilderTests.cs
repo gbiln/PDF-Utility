@@ -76,6 +76,40 @@ public class PdfSharpPdfBuilderTests : IDisposable
         Assert.True(page.Width > page.Height, $"Expected landscape (Width > Height) but got Width={page.Width}, Height={page.Height}");
     }
 
+    [Fact]
+    public async Task BuildAsync_LetterPaperSize_ProducesLetterSizedPage()
+    {
+        var builder = new PdfSharpPdfBuilder();
+        var pngPath = CreateTestPng("letter.png", 100, 130); // arbitrary image size
+        var outputPath = Path.Combine(_testDir, "letter.pdf");
+        var pages = new[] { new TestPageSource(pngPath) };
+        var opts = new PdfBuildOptions { PaperSize = PaperSize.Letter };
+
+        await builder.BuildAsync(pages, opts, outputPath);
+
+        using var doc = PdfSharp.Pdf.IO.PdfReader.Open(outputPath, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+        var page = doc.Pages[0];
+        Assert.Equal(612, page.Width.Point, 0);   // 8.5" × 72
+        Assert.Equal(792, page.Height.Point, 0);  // 11"  × 72
+    }
+
+    [Fact]
+    public async Task BuildAsync_LegalPaperSize_ProducesLegalSizedPage()
+    {
+        var builder = new PdfSharpPdfBuilder();
+        var pngPath = CreateTestPng("legal.png", 100, 130); // arbitrary image size
+        var outputPath = Path.Combine(_testDir, "legal.pdf");
+        var pages = new[] { new TestPageSource(pngPath) };
+        var opts = new PdfBuildOptions { PaperSize = PaperSize.Legal };
+
+        await builder.BuildAsync(pages, opts, outputPath);
+
+        using var doc = PdfSharp.Pdf.IO.PdfReader.Open(outputPath, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+        var page = doc.Pages[0];
+        Assert.Equal(612,  page.Width.Point,  0);  // 8.5" × 72
+        Assert.Equal(1008, page.Height.Point, 0);  // 14"  × 72
+    }
+
     private record TestPageSource(string ImagePath) : IPageSource
     {
         public PageRotation Rotation { get; set; } = PageRotation.None;

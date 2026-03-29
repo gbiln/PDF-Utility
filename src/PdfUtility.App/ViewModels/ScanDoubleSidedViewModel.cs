@@ -335,25 +335,24 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     {
         IsLoadingDevices = true;
         StatusMessage = "Scanning for devices…";
-        AvailableDevices.Clear();
         try
         {
             var devices = await _scanner.GetDevicesAsync();
+            AvailableDevices.Clear();            // ← only clear once we have fresh data
             foreach (var d in devices)
                 AvailableDevices.Add(d);
 
-            // Clear stale selection if previous device no longer found
             if (SelectedDevice != null && !devices.Contains(SelectedDevice))
                 SelectedDevice = null;
 
-            // Auto-select when exactly one device found
-            if (devices.Count == 1)
+            if (devices.Count == 1 && SelectedDevice == null)  // ← guard: avoid spurious double-call
                 SelectedDevice = devices[0];
 
             StatusMessage = devices.Count == 0
                 ? "No scanners found — check network connection and click ↻ to retry."
                 : "Ready to scan.";
         }
+        catch (OperationCanceledException) { throw; }  // ← rethrow cancellation, don't swallow
         catch (Exception)
         {
             AvailableDevices.Clear();

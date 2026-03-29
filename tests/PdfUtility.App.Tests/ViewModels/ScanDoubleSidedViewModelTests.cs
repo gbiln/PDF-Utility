@@ -246,6 +246,7 @@ public class ScanDoubleSidedViewModelTests
         fake.SimulatedDevices.Clear();
         await vm.RefreshDevicesCommand.ExecuteAsync(null);
         Assert.Null(vm.SelectedDevice);
+        Assert.Empty(vm.AvailableDevices);
     }
 
     [Fact]
@@ -272,6 +273,7 @@ public class ScanDoubleSidedViewModelTests
         var vm = CreateVm(fake);
         await vm.RefreshDevicesCommand.ExecuteAsync(null);
         Assert.Null(vm.SelectedDevice);
+        Assert.Empty(vm.AvailableDevices);
         Assert.Contains("Could not enumerate scanners", vm.StatusMessage);
     }
 }

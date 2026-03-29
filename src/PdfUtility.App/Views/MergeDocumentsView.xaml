@@ -177,61 +177,86 @@
                         <TextBlock Text="Loading pages…" Foreground="#888" FontSize="14"/>
                     </StackPanel>
 
-                    <!-- Page grid (not preview open) -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12"
-                                  Visibility="{Binding IsNotPreviewOpen, Converter={StaticResource BoolToVisibility}}">
-                        <ItemsControl ItemsSource="{Binding Pages}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Background="Transparent" BorderThickness="0"
-                                            Padding="0" Cursor="Hand"
-                                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            Command="{Binding DataContext.OpenPreviewCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}">
-                                        <Button.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="Move to Beginning"
-                                                          Command="{Binding PlacementTarget.Tag.MovePageToBeginningCommand,
-                                                              RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding}"/>
-                                                <MenuItem Header="Move to End"
-                                                          Command="{Binding PlacementTarget.Tag.MovePageToEndCommand,
-                                                              RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding}"/>
-                                                <Separator/>
-                                                <MenuItem Header="Remove Page"
-                                                          Command="{Binding PlacementTarget.Tag.RemovePageCommand,
-                                                              RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding}"/>
-                                            </ContextMenu>
-                                        </Button.ContextMenu>
-                                        <controls:PageThumbnailControl DataContext="{Binding}"
-                                                                       ShowReplaceLink="False"/>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                    <!-- Two-column layout: narrow strip (preview open) + main area -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Full-page preview overlay -->
-                    <Grid Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibility}}">
-                        <Grid.Background>
-                            <SolidColorBrush Color="Black" Opacity="0.75"/>
-                        </Grid.Background>
-                        <Button Content="✕  Close Preview"
-                                Command="{Binding ClosePreviewCommand}"
-                                HorizontalAlignment="Right" VerticalAlignment="Top"
-                                Margin="8" Padding="8,4" Cursor="Hand"
-                                Panel.ZIndex="1"/>
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                                      Margin="0,36,0,0">
-                            <Image Source="{Binding PreviewPage.ImagePath, Converter={StaticResource PathToBitmap}, ConverterParameter=1200}"
-                                   Stretch="Uniform" Margin="16"
-                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <!-- Narrow thumbnail strip — visible when preview is open -->
+                        <Border Grid.Column="0"
+                                BorderBrush="#DDDDDD" BorderThickness="0,0,1,0"
+                                Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibility}}">
+                            <ScrollViewer Width="110" VerticalScrollBarVisibility="Auto" Padding="4">
+                                <ItemsControl ItemsSource="{Binding Pages}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                                                    Command="{Binding DataContext.OpenPreviewCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <controls:PageThumbnailControl DataContext="{Binding}" ShowReplaceLink="False"/>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+
+                        <!-- WrapPanel grid — visible when no preview -->
+                        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="12"
+                                      Visibility="{Binding IsNotPreviewOpen, Converter={StaticResource BoolToVisibility}}">
+                            <ItemsControl ItemsSource="{Binding Pages}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Background="Transparent" BorderThickness="0"
+                                                Padding="0" Cursor="Hand"
+                                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                Command="{Binding DataContext.OpenPreviewCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Move to Beginning"
+                                                              Command="{Binding PlacementTarget.Tag.MovePageToBeginningCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              CommandParameter="{Binding}"/>
+                                                    <MenuItem Header="Move to End"
+                                                              Command="{Binding PlacementTarget.Tag.MovePageToEndCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              CommandParameter="{Binding}"/>
+                                                    <Separator/>
+                                                    <MenuItem Header="Remove Page"
+                                                              Command="{Binding PlacementTarget.Tag.RemovePageCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                              CommandParameter="{Binding}"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                            <controls:PageThumbnailControl DataContext="{Binding}"
+                                                                           ShowReplaceLink="False"/>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
+
+                        <!-- Full-page preview — same column as WrapPanel, visible when preview open -->
+                        <Grid Grid.Column="1"
+                              Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibility}}">
+                            <Button Content="✕  Close Preview"
+                                    Command="{Binding ClosePreviewCommand}"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Margin="8" Padding="8,4" Cursor="Hand"
+                                    Panel.ZIndex="1"/>
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                          Margin="0,36,0,0">
+                                <Image Source="{Binding PreviewPage.ImagePath, Converter={StaticResource PathToBitmap}, ConverterParameter=1200}"
+                                       Stretch="Uniform" Margin="16"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </ScrollViewer>
+                        </Grid>
                     </Grid>
                 </Grid>
             </Grid>

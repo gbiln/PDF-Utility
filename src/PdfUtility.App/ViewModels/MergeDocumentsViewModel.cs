@@ -327,7 +327,7 @@ public partial class MergeDocumentsViewModel : ObservableObject
             {
                 Format = prefs.PdfFormat,
                 JpegQuality = prefs.JpegQuality,
-                PaperSize = prefs.PaperSize
+                PaperSize = PaperSize.AutoDetect  // each imported page keeps its own dimensions
             };
             await _pdfBuilder.BuildAsync(_pageData, options, dialog.FileName);
             SessionState = MergeSessionState.PagesLoaded;

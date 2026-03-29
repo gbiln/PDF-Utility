@@ -3,7 +3,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:controls="clr-namespace:PdfUtility.App.Views.Controls">
+             xmlns:controls="clr-namespace:PdfUtility.App.Views.Controls"
+             xmlns:models="clr-namespace:PdfUtility.Core.Models;assembly=PdfUtility.Core">
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -11,99 +12,173 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Left: dark sidebar -->
+        <!-- ── Left: dark sidebar ── -->
         <Border Grid.Column="0" Background="{StaticResource AppSidebarBg}" Padding="12">
-            <StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
 
-                <!-- Scanner selection -->
-                <TextBlock Text="SCANNER" Style="{StaticResource SidebarLabel}"/>
-                <Grid Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <ComboBox Grid.Column="0"
-                              ItemsSource="{Binding AvailableDevices}"
-                              SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
-                              Margin="0,0,4,0">
-                        <ComboBox.Style>
-                            <Style TargetType="ComboBox">
-                                <Setter Property="IsEnabled" Value="True"/>
+                    <!-- ── IDLE: scanner selection + settings + start ── -->
+                    <StackPanel Visibility="{Binding IsIdle, Converter={StaticResource BoolToVisibility}}">
+
+                        <TextBlock Text="SCANNER" Style="{StaticResource SidebarLabel}"/>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0"
+                                      ItemsSource="{Binding AvailableDevices}"
+                                      SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+                                      Margin="0,0,4,0">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="IsEnabled" Value="True"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsLoadingDevices}" Value="True">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding AvailableDevices.Count}" Value="0">
+                                                <Setter Property="IsEnabled" Value="False"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
+                            <Button Grid.Column="1" Content="↻"
+                                    Command="{Binding RefreshDevicesCommand}"
+                                    Style="{StaticResource SidebarButton}"
+                                    Width="32" ToolTip="Refresh scanner list"/>
+                        </Grid>
+
+                        <TextBlock Text="SCAN MODE" Style="{StaticResource SidebarLabel}"/>
+                        <ComboBox ItemsSource="{Binding ScanModeOptions}"
+                                  SelectedItem="{Binding ScanMode, Mode=TwoWay}"
+                                  Margin="0,0,0,8"/>
+
+                        <TextBlock Text="DPI" Style="{StaticResource SidebarLabel}"/>
+                        <ComboBox ItemsSource="{Binding DpiOptions}"
+                                  SelectedItem="{Binding ScanDpi, Mode=TwoWay}"
+                                  Margin="0,0,0,8"/>
+
+                        <TextBlock Text="COLOR" Style="{StaticResource SidebarLabel}"/>
+                        <ComboBox ItemsSource="{Binding ColorModeOptions}"
+                                  SelectedItem="{Binding ColorMode, Mode=TwoWay}"
+                                  Margin="0,0,0,8"/>
+
+                        <TextBlock Text="SIZE" Style="{StaticResource SidebarLabel}"/>
+                        <ComboBox ItemsSource="{Binding PaperSizeOptions}"
+                                  SelectedItem="{Binding PaperSize, Mode=TwoWay}"
+                                  Margin="0,0,0,8"/>
+
+                        <TextBlock Text="PDF FORMAT" Style="{StaticResource SidebarLabel}"/>
+                        <ComboBox ItemsSource="{Binding PdfFormatOptions}"
+                                  SelectedItem="{Binding PdfFormat, Mode=TwoWay}"
+                                  Margin="0,0,0,12"/>
+
+                        <Button Content="▶  Start Scanning"
+                                Style="{StaticResource AccentButton}"
+                                Command="{Binding StartBatch1Command}"
+                                HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+
+                    <!-- ── BATCH 1 ACTIONS (Paused or Error) ── -->
+                    <StackPanel Visibility="{Binding IsBatch1Actionable, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="BATCH 1 — FRONT SIDES" Style="{StaticResource SidebarLabel}"/>
+                        <Button Content="⊕  Continue Scanning"
+                                Style="{StaticResource SidebarButton}"
+                                Command="{Binding ContinueScanningCommand}"
+                                Margin="0,0,0,4"/>
+                        <Button Content="✓  Done Scanning Front"
+                                Style="{StaticResource SidebarButton}"
+                                Command="{Binding DoneBatch1Command}"/>
+                    </StackPanel>
+
+                    <!-- ── SCAN BACK SIDE (Batch1Complete) ── -->
+                    <StackPanel>
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsLoadingDevices}" Value="True">
-                                        <Setter Property="IsEnabled" Value="False"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding AvailableDevices.Count}" Value="0">
-                                        <Setter Property="IsEnabled" Value="False"/>
+                                    <DataTrigger Binding="{Binding SessionState}"
+                                                 Value="{x:Static models:ScanSessionState.Batch1Complete}">
+                                        <Setter Property="Visibility" Value="Visible"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
-                        </ComboBox.Style>
-                    </ComboBox>
-                    <Button Grid.Column="1" Content="↻"
-                            Command="{Binding RefreshDevicesCommand}"
-                            Style="{StaticResource SidebarButton}"
-                            Width="32" ToolTip="Refresh scanner list"/>
-                </Grid>
-
-                <!-- Batch 1 -->
-                <TextBlock Text="BATCH 1 — FRONT SIDES" Style="{StaticResource SidebarLabel}"/>
-                <Button Content="▶  Start Scanning" Style="{StaticResource AccentButton}"
-                        Command="{Binding StartBatch1Command}"
-                        HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
-                <Button Content="⊕  Continue Scanning" Style="{StaticResource SidebarButton}"
-                        Command="{Binding ContinueScanningCommand}" Margin="0,0,0,4"/>
-                <Button Content="✓  Done with Batch 1" Style="{StaticResource SidebarButton}"
-                        Command="{Binding DoneBatch1Command}" Margin="0,0,0,12"/>
-
-                <!-- Batch 2 -->
-                <TextBlock Text="BATCH 2 — BACK SIDES" Style="{StaticResource SidebarLabel}"/>
-                <Button Content="▶  Scan Other Side" Style="{StaticResource AccentButton}"
-                        Command="{Binding ScanOtherSideCommand}"
-                        IsEnabled="{Binding IsBatch1Complete}"
-                        HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
-                <Button Content="⊕  Continue Scanning" Style="{StaticResource SidebarButton}"
-                        Command="{Binding ContinueScanningCommand}" Margin="0,0,0,4"/>
-                <Button Content="✓  Done with Batch 2" Style="{StaticResource SidebarButton}"
-                        Command="{Binding DoneBatch2Command}" Margin="0,0,0,12"/>
-
-                <!-- Merge -->
-                <Button Content="⇄  Merge Document" Style="{StaticResource AccentButton}"
-                        Command="{Binding MergeDocumentCommand}"
-                        HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
-
-                <!-- Discard -->
-                <Button Content="🗑  Discard Session" Style="{StaticResource DangerButton}"
-                        Command="{Binding DiscardSessionCommand}"/>
-
-                <!-- Error recovery banner -->
-                <Border Background="#3A1A00" CornerRadius="6" Padding="10" Margin="0,16,0,0"
-                        Visibility="{Binding ShowErrorBanner, Converter={StaticResource BoolToVisibility}}">
-                    <StackPanel>
-                        <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap"
-                                   Foreground="#FFB74D" FontSize="11" Margin="0,0,0,8"/>
-                        <Button Content="▶  Continue Scanning"
-                                Style="{StaticResource SidebarButton}"
-                                Command="{Binding ContinueScanningCommand}" Margin="0,0,0,4"/>
-                        <Button Content="↩  Rescan Last Page"
-                                Style="{StaticResource SidebarButton}"
-                                Command="{Binding RescanLastPageCommand}" Margin="0,0,0,4"/>
-                        <Button Content="✓  Done with Batch"
-                                Style="{StaticResource SidebarButton}"
-                                Command="{Binding DoneCurrentBatchCommand}"/>
+                        </StackPanel.Style>
+                        <TextBlock Text="BATCH 2 — BACK SIDES" Style="{StaticResource SidebarLabel}"/>
+                        <Button Content="▶  Scan Back Side"
+                                Style="{StaticResource AccentButton}"
+                                Command="{Binding ScanOtherSideCommand}"
+                                HorizontalAlignment="Stretch"/>
                     </StackPanel>
-                </Border>
 
-                <!-- Mismatch warning -->
-                <Border Background="#3A2800" CornerRadius="6" Padding="10" Margin="0,8,0,0"
-                        Visibility="{Binding ShowMismatchWarning, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Text="{Binding MismatchWarningText}" TextWrapping="Wrap"
-                               Foreground="#FFD54F" FontSize="11"/>
-                </Border>
-            </StackPanel>
+                    <!-- ── BATCH 2 ACTIONS (Paused or Error) ── -->
+                    <StackPanel Visibility="{Binding IsBatch2Actionable, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="BATCH 2 — BACK SIDES" Style="{StaticResource SidebarLabel}"/>
+                        <Button Content="⊕  Continue Scanning"
+                                Style="{StaticResource SidebarButton}"
+                                Command="{Binding ContinueScanningCommand}"
+                                Margin="0,0,0,4"/>
+                        <Button Content="✓  Done Scanning Back"
+                                Style="{StaticResource SidebarButton}"
+                                Command="{Binding DoneBatch2Command}"/>
+                    </StackPanel>
+
+                    <!-- ── MERGE READY ── -->
+                    <StackPanel Visibility="{Binding IsMergeReady, Converter={StaticResource BoolToVisibility}}">
+                        <Button Content="⇄  Merge Document"
+                                Style="{StaticResource AccentButton}"
+                                Command="{Binding MergeDocumentCommand}"
+                                HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+
+                    <!-- ── ERROR RECOVERY BANNER ── -->
+                    <Border Background="#3A1A00" CornerRadius="6" Padding="10" Margin="0,12,0,0"
+                            Visibility="{Binding ShowErrorBanner, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap"
+                                       Foreground="#FFB74D" FontSize="11" Margin="0,0,0,8"/>
+                            <Button Content="▶  Continue Scanning"
+                                    Style="{StaticResource SidebarButton}"
+                                    Command="{Binding ContinueScanningCommand}" Margin="0,0,0,4"/>
+                            <Button Content="↩  Rescan Last Page"
+                                    Style="{StaticResource SidebarButton}"
+                                    Command="{Binding RescanLastPageCommand}" Margin="0,0,0,4"/>
+                            <Button Content="✓  Done with Batch"
+                                    Style="{StaticResource SidebarButton}"
+                                    Command="{Binding DoneCurrentBatchCommand}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── MISMATCH WARNING ── -->
+                    <Border Background="#3A2800" CornerRadius="6" Padding="10" Margin="0,8,0,0"
+                            Visibility="{Binding ShowMismatchWarning, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding MismatchWarningText}" TextWrapping="Wrap"
+                                   Foreground="#FFD54F" FontSize="11"/>
+                    </Border>
+
+                    <!-- ── DISCARD (visible whenever session is active, i.e. not Idle) ── -->
+                    <Button Content="🗑  Discard Session"
+                            Command="{Binding DiscardSessionCommand}"
+                            Margin="0,16,0,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource DangerButton}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsIdle}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                </StackPanel>
+            </ScrollViewer>
         </Border>
 
-        <!-- Right: light canvas + optional full-page preview -->
+        <!-- ── Right: canvas + preview ── -->
         <Grid Grid.Column="1" Background="{StaticResource AppCanvasBg}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
@@ -127,7 +202,7 @@
                                     <Button Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                                             Command="{Binding DataContext.PreviewPageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}">
-                                        <controls:PageThumbnailControl DataContext="{Binding}"/>
+                                        <controls:PageThumbnailControl DataContext="{Binding}" ShowReplaceLink="False"/>
                                     </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -135,7 +210,7 @@
                     </ScrollViewer>
                 </Border>
 
-                <!-- WrapPanel thumbnails (no preview open) -->
+                <!-- WrapPanel thumbnails with right-click reorder (no preview open) -->
                 <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="12"
                               Visibility="{Binding IsNotPreviewOpen, Converter={StaticResource BoolToVisibility}}">
                     <ItemsControl ItemsSource="{Binding Thumbnails}">
@@ -146,8 +221,23 @@
                             <DataTemplate>
                                 <Button Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                                         Command="{Binding DataContext.PreviewPageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}">
-                                    <controls:PageThumbnailControl DataContext="{Binding}"/>
+                                        CommandParameter="{Binding}"
+                                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Move to Beginning"
+                                                      Command="{Binding PlacementTarget.Tag.MovePageToBeginningCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding}"/>
+                                            <MenuItem Header="Move to End"
+                                                      Command="{Binding PlacementTarget.Tag.MovePageToEndCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding}"/>
+                                            <Separator/>
+                                            <MenuItem Header="Remove Page"
+                                                      Command="{Binding PlacementTarget.Tag.RemoveScanPageCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding}"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                    <controls:PageThumbnailControl DataContext="{Binding}" ShowReplaceLink="False"/>
                                 </Button>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

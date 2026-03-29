@@ -26,6 +26,9 @@ public class ScanDoubleSidedViewModelTests
     {
         var vm = CreateVm();
         Assert.Equal(ScanSessionState.Idle, vm.SessionState);
+        // CanStartBatch1 requires a device to be selected
+        Assert.False(vm.StartBatch1Command.CanExecute(null));
+        vm.SelectedDevice = "Fake Scanner";
         Assert.True(vm.StartBatch1Command.CanExecute(null));
         Assert.False(vm.ContinueScanningCommand.CanExecute(null));
         Assert.False(vm.DoneBatch1Command.CanExecute(null));
@@ -38,6 +41,7 @@ public class ScanDoubleSidedViewModelTests
         var fake = new FakeScannerBackend();
         fake.BatchQueue.Enqueue(["page1.png", "page2.png"]);
         var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
 
         await vm.StartBatch1Command.ExecuteAsync(null);
 
@@ -52,6 +56,7 @@ public class ScanDoubleSidedViewModelTests
         var fake = new FakeScannerBackend();
         fake.BatchQueue.Enqueue(["p1.png"]);
         var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
         await vm.StartBatch1Command.ExecuteAsync(null);
 
         await vm.DoneBatch1Command.ExecuteAsync(null);
@@ -68,6 +73,7 @@ public class ScanDoubleSidedViewModelTests
         fake.BatchQueue.Enqueue(["p1.png", "p2.png"]);
         fake.NextScanError = new ScannerException("Paper jam");
         var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
 
         await vm.StartBatch1Command.ExecuteAsync(null);
 
@@ -83,6 +89,7 @@ public class ScanDoubleSidedViewModelTests
         var fake = new FakeScannerBackend();
         fake.BatchQueue.Enqueue(["p1.png"]);
         var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
         await vm.StartBatch1Command.ExecuteAsync(null);
 
         await vm.DiscardSessionCommand.ExecuteAsync(null);
@@ -98,6 +105,7 @@ public class ScanDoubleSidedViewModelTests
         fake.BatchQueue.Enqueue(["original.png"]);
         fake.NextFlatbedImagePath = "replacement.png";
         var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
         await vm.StartBatch1Command.ExecuteAsync(null);
 
         var thumb = vm.Thumbnails[0];
@@ -114,6 +122,7 @@ public class ScanDoubleSidedViewModelTests
         fake.BatchQueue.Enqueue(["original.png"]);
         fake.FlatbedShouldFail = true;
         var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
         await vm.StartBatch1Command.ExecuteAsync(null);
 
         var thumb = vm.Thumbnails[0];
@@ -128,6 +137,7 @@ public class ScanDoubleSidedViewModelTests
         var fake = new FakeScannerBackend();
         fake.BatchQueue.Enqueue(["f1.png"]);
         var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
         await vm.StartBatch1Command.ExecuteAsync(null);
         await vm.DoneBatch1Command.ExecuteAsync(null);
 
@@ -148,6 +158,7 @@ public class ScanDoubleSidedViewModelTests
         fake.BatchQueue.Enqueue(["f1.png"]);
         fake.NextScanError = new ScannerException("Jam");
         var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
         await vm.StartBatch1Command.ExecuteAsync(null);
         Assert.Equal(ScanSessionState.Batch1Error, vm.SessionState);
 
@@ -179,5 +190,88 @@ public class ScanDoubleSidedViewModelTests
         fake.SelectDevice("Fake Scanner");
         fake.SelectDevice(null);
         Assert.Null(fake.SelectedDeviceName);
+    }
+
+    // ── Scanner Selection Tests ───────────────────────────────────────
+
+    [Fact]
+    public void CanStartBatch1_FalseWhenNoDeviceSelected()
+    {
+        var vm = CreateVm();
+        Assert.Null(vm.SelectedDevice);
+        Assert.False(vm.StartBatch1Command.CanExecute(null));
+    }
+
+    [Fact]
+    public void CanStartBatch1_TrueAfterDeviceSelected()
+    {
+        var vm = CreateVm();
+        vm.SelectedDevice = "Fake Scanner";
+        Assert.True(vm.StartBatch1Command.CanExecute(null));
+    }
+
+    [Fact]
+    public void SelectedDevice_PropertySetter_CallsBackendSelectDevice()
+    {
+        var fake = new FakeScannerBackend();
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+        Assert.Equal("Fake Scanner", fake.SelectedDeviceName);
+    }
+
+    [Fact]
+    public async Task RefreshDevices_PopulatesAvailableDevices()
+    {
+        var fake = new FakeScannerBackend();
+        var vm = CreateVm(fake);
+        await vm.RefreshDevicesCommand.ExecuteAsync(null);
+        Assert.Equal(new[] { "Fake Scanner" }, vm.AvailableDevices);
+    }
+
+    [Fact]
+    public async Task RefreshDevices_AutoSelectsIfSingleDevice()
+    {
+        var fake = new FakeScannerBackend();
+        var vm = CreateVm(fake);
+        await vm.RefreshDevicesCommand.ExecuteAsync(null);
+        Assert.Equal("Fake Scanner", vm.SelectedDevice);
+    }
+
+    [Fact]
+    public async Task RefreshDevices_ClearsSelectionIfDeviceDisappears()
+    {
+        var fake = new FakeScannerBackend();
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+        fake.SimulatedDevices.Clear();
+        await vm.RefreshDevicesCommand.ExecuteAsync(null);
+        Assert.Null(vm.SelectedDevice);
+    }
+
+    [Fact]
+    public async Task RefreshDevices_SetsIsLoadingDevicesDuringEnumeration()
+    {
+        var fake = new FakeScannerBackend();
+        var gate = new TaskCompletionSource();
+        fake.GetDevicesGate = gate;
+        var vm = CreateVm(fake);
+
+        var task = vm.RefreshDevicesCommand.ExecuteAsync(null);
+        Assert.True(vm.IsLoadingDevices);
+        Assert.False(vm.RefreshDevicesCommand.CanExecute(null));
+
+        gate.SetResult();
+        await task;
+        Assert.False(vm.IsLoadingDevices);
+    }
+
+    [Fact]
+    public async Task RefreshDevices_ShowsErrorMessageOnFailure()
+    {
+        var fake = new FakeScannerBackend { GetDevicesShouldFail = true };
+        var vm = CreateVm(fake);
+        await vm.RefreshDevicesCommand.ExecuteAsync(null);
+        Assert.Null(vm.SelectedDevice);
+        Assert.Contains("Could not enumerate scanners", vm.StatusMessage);
     }
 }

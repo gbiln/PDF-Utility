@@ -36,6 +36,16 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     [ObservableProperty] private bool _showMismatchWarning;
     [ObservableProperty] private string _mismatchWarningText = string.Empty;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(StartBatch1Command))]
+    private string? _selectedDevice;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RefreshDevicesCommand))]
+    private bool _isLoadingDevices;
+
+    public ObservableCollection<string> AvailableDevices { get; } = new();
+
     public ObservableCollection<PageThumbnailViewModel> Thumbnails { get; } = new();
 
     // Settings (set by MainViewModel via binding or DI)
@@ -50,6 +60,8 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         _pdfBuilder = pdfBuilder;
         _userSettings = userSettings;
     }
+
+    partial void OnSelectedDeviceChanged(string? value) => _scanner.SelectDevice(value);
 
     // ── Commands ──────────────────────────────────────────────────────
 
@@ -67,7 +79,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         StatusMessage = "Scanning Batch 1 (front sides)…";
         await RunScanBatchAsync(targetBatch: 1, ScanSessionState.Batch1Paused, ScanSessionState.Batch1Error);
     }
-    private bool CanStartBatch1() => SessionState == ScanSessionState.Idle;
+    private bool CanStartBatch1() => SessionState == ScanSessionState.Idle && SelectedDevice != null;
 
     [RelayCommand(CanExecute = nameof(CanContinueScanning))]
     private async Task ContinueScanning()
@@ -317,4 +329,41 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     private bool CanDoneCurrentBatch() =>
         SessionState is ScanSessionState.Batch1Paused or ScanSessionState.Batch1Error
                      or ScanSessionState.Batch2Paused or ScanSessionState.Batch2Error;
+
+    [RelayCommand(CanExecute = nameof(CanRefreshDevices))]
+    private async Task RefreshDevices()
+    {
+        IsLoadingDevices = true;
+        StatusMessage = "Scanning for devices…";
+        AvailableDevices.Clear();
+        try
+        {
+            var devices = await _scanner.GetDevicesAsync();
+            foreach (var d in devices)
+                AvailableDevices.Add(d);
+
+            // Clear stale selection if previous device no longer found
+            if (SelectedDevice != null && !devices.Contains(SelectedDevice))
+                SelectedDevice = null;
+
+            // Auto-select when exactly one device found
+            if (devices.Count == 1)
+                SelectedDevice = devices[0];
+
+            StatusMessage = devices.Count == 0
+                ? "No scanners found — check network connection and click ↻ to retry."
+                : "Ready to scan.";
+        }
+        catch (Exception)
+        {
+            AvailableDevices.Clear();
+            SelectedDevice = null;
+            StatusMessage = "Could not enumerate scanners — check network connection and click ↻ to retry.";
+        }
+        finally
+        {
+            IsLoadingDevices = false;
+        }
+    }
+    private bool CanRefreshDevices() => !IsLoadingDevices;
 }

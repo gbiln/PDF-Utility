@@ -22,6 +22,21 @@ public class FakeScannerBackend : IScannerBackend
 
     public bool InitialiseCalled { get; private set; }
 
+    /// <summary>Device names returned by GetDevicesAsync.</summary>
+    public List<string> SimulatedDevices { get; } = new() { "Fake Scanner" };
+
+    /// <summary>Name passed to the last SelectDevice call (null if cleared).</summary>
+    public string? SelectedDeviceName { get; private set; }
+
+    /// <summary>
+    /// If set, GetDevicesAsync awaits this before returning — lets tests observe
+    /// IsLoadingDevices == true before releasing enumeration.
+    /// </summary>
+    public TaskCompletionSource? GetDevicesGate { get; set; }
+
+    /// <summary>If true, GetDevicesAsync throws InvalidOperationException.</summary>
+    public bool GetDevicesShouldFail { get; set; }
+
     public async IAsyncEnumerable<ScannedPage> ScanBatchAsync(
         ScanOptions options,
         int batchNumber,
@@ -57,8 +72,16 @@ public class FakeScannerBackend : IScannerBackend
         return Task.FromResult(new ScannedPage(path, sourceBatch: batchNumber));
     }
 
-    public Task<IReadOnlyList<string>> GetAvailableDevicesAsync() =>
-        Task.FromResult<IReadOnlyList<string>>(["Fake Scanner"]);
+    public async Task<IReadOnlyList<string>> GetDevicesAsync(CancellationToken cancellationToken = default)
+    {
+        if (GetDevicesGate is { } gate)
+            await gate.Task;
+        if (GetDevicesShouldFail)
+            throw new InvalidOperationException("Simulated device enumeration failure");
+        return SimulatedDevices.AsReadOnly();
+    }
+
+    public void SelectDevice(string? deviceName) => SelectedDeviceName = deviceName;
 
     public Task InitialiseAsync()
     {

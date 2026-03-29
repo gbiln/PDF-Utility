@@ -155,4 +155,29 @@ public class ScanDoubleSidedViewModelTests
 
         Assert.Equal(ScanSessionState.Batch1Complete, vm.SessionState);
     }
+
+    [Fact]
+    public async Task GetDevices_ReturnsSimulatedList()
+    {
+        var fake = new FakeScannerBackend();
+        var devices = await fake.GetDevicesAsync();
+        Assert.Equal(new[] { "Fake Scanner" }, devices);
+    }
+
+    [Fact]
+    public void SelectDevice_StoresDeviceName()
+    {
+        var fake = new FakeScannerBackend();
+        fake.SelectDevice("Fake Scanner");
+        Assert.Equal("Fake Scanner", fake.SelectedDeviceName);
+    }
+
+    [Fact]
+    public void SelectDevice_Null_ClearsDeviceName()
+    {
+        var fake = new FakeScannerBackend();
+        fake.SelectDevice("Fake Scanner");
+        fake.SelectDevice(null);
+        Assert.Null(fake.SelectedDeviceName);
+    }
 }

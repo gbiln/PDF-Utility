@@ -30,8 +30,17 @@ public interface IScannerBackend
         int pageIndex,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Returns all available scanner device names.</summary>
-    Task<IReadOnlyList<string>> GetAvailableDevicesAsync();
+    /// <summary>
+    /// Returns all available scanner device names (re-enumerates each call).
+    /// Replaces GetAvailableDevicesAsync.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetDevicesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets the active device by name. Pass null to clear the selection.
+    /// Callers must only pass names sourced from the most recent GetDevicesAsync result.
+    /// </summary>
+    void SelectDevice(string? deviceName);
 
     /// <summary>Pre-warms the scanner context (call at app startup).</summary>
     Task InitialiseAsync();

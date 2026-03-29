@@ -17,7 +17,7 @@ public class PathToBitmapConverter : IValueConverter
             bmp.BeginInit();
             bmp.UriSource = new Uri(path, UriKind.Absolute);
             bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.DecodePixelWidth = 180;
+            bmp.DecodePixelWidth = parameter is string s && int.TryParse(s, out int p) ? p : 180;
             bmp.EndInit();
             bmp.Freeze();
             return bmp;

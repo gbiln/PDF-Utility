@@ -28,7 +28,10 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(DiscardSessionCommand))]
     [NotifyCanExecuteChangedFor(nameof(RescanLastPageCommand))]
     [NotifyCanExecuteChangedFor(nameof(DoneCurrentBatchCommand))]
+    [NotifyPropertyChangedFor(nameof(IsBatch1Complete))]
     private ScanSessionState _sessionState = ScanSessionState.Idle;
+
+    public bool IsBatch1Complete => SessionState == ScanSessionState.Batch1Complete;
 
     [ObservableProperty] private string _statusMessage = "Ready to scan.";
     [ObservableProperty] private string _errorMessage = string.Empty;
@@ -47,6 +50,14 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     public ObservableCollection<string> AvailableDevices { get; } = new();
 
     public ObservableCollection<PageThumbnailViewModel> Thumbnails { get; } = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPreviewOpen))]
+    [NotifyPropertyChangedFor(nameof(IsNotPreviewOpen))]
+    private PageThumbnailViewModel? _selectedThumbnail;
+
+    public bool IsPreviewOpen => SelectedThumbnail != null;
+    public bool IsNotPreviewOpen => SelectedThumbnail == null;
 
     // Settings (set by MainViewModel via binding or DI)
     public ScanOptions CurrentScanOptions { get; set; } = new();
@@ -329,6 +340,12 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     private bool CanDoneCurrentBatch() =>
         SessionState is ScanSessionState.Batch1Paused or ScanSessionState.Batch1Error
                      or ScanSessionState.Batch2Paused or ScanSessionState.Batch2Error;
+
+    [RelayCommand]
+    private void PreviewPage(PageThumbnailViewModel thumb) => SelectedThumbnail = thumb;
+
+    [RelayCommand]
+    private void ClosePreview() => SelectedThumbnail = null;
 
     [RelayCommand(CanExecute = nameof(CanRefreshDevices))]
     private async Task RefreshDevices()

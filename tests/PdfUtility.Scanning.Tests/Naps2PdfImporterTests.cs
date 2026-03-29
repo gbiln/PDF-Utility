@@ -21,9 +21,9 @@ public class Naps2PdfImporterTests : IDisposable
         {
             var page = doc.AddPage();
             var gfx = PdfSharp.Drawing.XGraphics.FromPdfPage(page);
-            gfx.DrawString($"Page {i + 1}", new PdfSharp.Drawing.XFont("Arial", 12),
-                PdfSharp.Drawing.XBrushes.Black,
-                new PdfSharp.Drawing.XPoint(50, 50));
+            // Draw a rectangle — no font resolver required
+            gfx.DrawRectangle(PdfSharp.Drawing.XBrushes.LightBlue,
+                new PdfSharp.Drawing.XRect(50, 50, 200, 100));
         }
         doc.Save(path);
         return path;

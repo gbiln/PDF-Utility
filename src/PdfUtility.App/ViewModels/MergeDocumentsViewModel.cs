@@ -113,6 +113,8 @@ public partial class MergeDocumentsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanModifyQueue))]
     private void MoveFileUp(MergeFileViewModel file)
     {
+        StatusMessage = string.Empty;
+        ErrorMessage = string.Empty;
         int idx = FileQueue.IndexOf(file);
         if (idx > 0) FileQueue.Move(idx, idx - 1);
     }
@@ -120,6 +122,8 @@ public partial class MergeDocumentsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanModifyQueue))]
     private void MoveFileDown(MergeFileViewModel file)
     {
+        StatusMessage = string.Empty;
+        ErrorMessage = string.Empty;
         int idx = FileQueue.IndexOf(file);
         if (idx >= 0 && idx < FileQueue.Count - 1) FileQueue.Move(idx, idx + 1);
     }
@@ -132,6 +136,7 @@ public partial class MergeDocumentsViewModel : ObservableObject
         StatusMessage = string.Empty;
         ErrorMessage = string.Empty;
 
+        DeleteTempDir();  // clean up any prior session temp dir
         _sessionTempDir = Path.Combine(
             Path.GetTempPath(), $"PdfUtility_Merge_{Guid.NewGuid():N}");
 
@@ -147,6 +152,7 @@ public partial class MergeDocumentsViewModel : ObservableObject
         SessionState = MergeSessionState.LoadingPages;
         IsLoadingPages = true;
 
+        _loadCts?.Dispose();
         _loadCts = new CancellationTokenSource();
         var ct = _loadCts.Token;
 
@@ -177,6 +183,7 @@ public partial class MergeDocumentsViewModel : ObservableObject
             }
             catch (OperationCanceledException) { break; }
             catch (PdfImportException ex) { failures.Add($"{file.FileName}: {ex.Message}"); }
+            catch (Exception ex) { failures.Add($"{file.FileName}: {ex.Message}"); }
         }
 
         IsLoadingPages = false;
@@ -216,6 +223,8 @@ public partial class MergeDocumentsViewModel : ObservableObject
     [RelayCommand]
     private void MovePageToBeginning(PageThumbnailViewModel thumb)
     {
+        StatusMessage = string.Empty;
+        ErrorMessage = string.Empty;
         int idx = Pages.IndexOf(thumb);
         if (idx <= 0) return;
         Pages.Move(idx, 0);
@@ -227,6 +236,8 @@ public partial class MergeDocumentsViewModel : ObservableObject
     [RelayCommand]
     private void MovePageToEnd(PageThumbnailViewModel thumb)
     {
+        StatusMessage = string.Empty;
+        ErrorMessage = string.Empty;
         int idx = Pages.IndexOf(thumb);
         if (idx < 0 || idx == Pages.Count - 1) return;
         Pages.Move(idx, Pages.Count - 1);
@@ -239,6 +250,8 @@ public partial class MergeDocumentsViewModel : ObservableObject
     [RelayCommand]
     private void RemovePage(PageThumbnailViewModel thumb)
     {
+        StatusMessage = string.Empty;
+        ErrorMessage = string.Empty;
         int idx = Pages.IndexOf(thumb);
         if (idx < 0) return;
         Pages.RemoveAt(idx);
@@ -257,10 +270,20 @@ public partial class MergeDocumentsViewModel : ObservableObject
     // ── Preview Commands ──────────────────────────────────────────────
 
     [RelayCommand]
-    private void OpenPreview(PageThumbnailViewModel thumb) => PreviewPage = thumb;
+    private void OpenPreview(PageThumbnailViewModel thumb)
+    {
+        StatusMessage = string.Empty;
+        ErrorMessage = string.Empty;
+        PreviewPage = thumb;
+    }
 
     [RelayCommand]
-    private void ClosePreview() => PreviewPage = null;
+    private void ClosePreview()
+    {
+        StatusMessage = string.Empty;
+        ErrorMessage = string.Empty;
+        PreviewPage = null;
+    }
 
     // ── Merge Command ─────────────────────────────────────────────────
 
@@ -320,6 +343,7 @@ public partial class MergeDocumentsViewModel : ObservableObject
     private void DiscardSession()
     {
         _loadCts?.Cancel();
+        _loadCts?.Dispose();
         _loadCts = null;
         FileQueue.Clear();
         Pages.Clear();

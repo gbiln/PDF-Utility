@@ -15,6 +15,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     private readonly IScannerBackend _scanner;
     private readonly IPdfBuilder _pdfBuilder;
     private readonly IUserSettings _userSettings;
+    private readonly MainViewModel _mainViewModel;
     private ScanSession _session = new();
     private string _sessionDirectory = string.Empty;
 
@@ -59,18 +60,24 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     public bool IsPreviewOpen => SelectedThumbnail != null;
     public bool IsNotPreviewOpen => SelectedThumbnail == null;
 
-    // Settings (set by MainViewModel via binding or DI)
-    public ScanOptions CurrentScanOptions { get; set; } = new();
-
     public ScanDoubleSidedViewModel(
         IScannerBackend scanner,
         IPdfBuilder pdfBuilder,
-        IUserSettings userSettings)
+        IUserSettings userSettings,
+        MainViewModel mainViewModel)
     {
         _scanner = scanner;
         _pdfBuilder = pdfBuilder;
         _userSettings = userSettings;
+        _mainViewModel = mainViewModel;
     }
+
+    private ScanOptions BuildCurrentScanOptions() => new()
+    {
+        Dpi = _mainViewModel.ScanDpi,
+        ColorMode = _mainViewModel.ColorMode,
+        PaperSize = _mainViewModel.PaperSize
+    };
 
     partial void OnSelectedDeviceChanged(string? value) => _scanner.SelectDevice(value);
 
@@ -260,7 +267,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         try
         {
             await foreach (var page in _scanner.ScanBatchAsync(
-                CurrentScanOptions, targetBatch, _sessionDirectory, startIndex))
+                BuildCurrentScanOptions(), targetBatch, _sessionDirectory, startIndex))
             {
                 // page.SourceBatch is already set correctly by the scanner
                 batch.Add(page);
@@ -314,7 +321,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         {
             StatusMessage = "Scanning replacement page from flatbed…";
             var replacement = await _scanner.ScanSingleFlatbedAsync(
-                CurrentScanOptions,
+                BuildCurrentScanOptions(),
                 thumb.ScannedPage.SourceBatch,
                 _sessionDirectory,
                 thumb.PageNumber - 1);

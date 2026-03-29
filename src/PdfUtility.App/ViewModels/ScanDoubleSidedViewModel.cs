@@ -42,9 +42,30 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(RescanLastPageCommand))]
     [NotifyCanExecuteChangedFor(nameof(DoneCurrentBatchCommand))]
     [NotifyPropertyChangedFor(nameof(IsBatch1Complete))]
+    [NotifyPropertyChangedFor(nameof(IsIdle))]
+    [NotifyPropertyChangedFor(nameof(IsBatch1Actionable))]
+    [NotifyPropertyChangedFor(nameof(IsBatch2Actionable))]
+    [NotifyPropertyChangedFor(nameof(IsMergeReady))]
     private ScanSessionState _sessionState = ScanSessionState.Idle;
 
     public bool IsBatch1Complete => SessionState == ScanSessionState.Batch1Complete;
+
+    // ── XAML visibility helpers ───────────────────────────────────────────
+    // Settings section only shown when Idle (locked during active session)
+    public bool IsIdle => SessionState == ScanSessionState.Idle;
+
+    // Batch 1 action buttons (Continue + Done Scanning Front)
+    public bool IsBatch1Actionable =>
+        SessionState is ScanSessionState.Batch1Paused
+                     or ScanSessionState.Batch1Error;
+
+    // Batch 2 action buttons (Continue + Done Scanning Back)
+    public bool IsBatch2Actionable =>
+        SessionState is ScanSessionState.Batch2Paused
+                     or ScanSessionState.Batch2Error;
+
+    // Merge button
+    public bool IsMergeReady => SessionState == ScanSessionState.MergeReady;
 
     [ObservableProperty] private string _statusMessage = "Ready to scan.";
     [ObservableProperty] private string _errorMessage = string.Empty;
@@ -132,8 +153,17 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanDoneBatch1))]
     private Task DoneBatch1()
     {
-        SessionState = ScanSessionState.Batch1Complete;
-        StatusMessage = $"Batch 1 complete ({_session.Batch1.Count} pages). Now scan the other side.";
+        if (ScanMode == ScanMode.SingleSided)
+        {
+            BuildMergedThumbnails();
+            SessionState = ScanSessionState.MergeReady;
+            StatusMessage = $"Single-sided scan complete ({_session.Batch1.Count} pages). Ready to merge.";
+        }
+        else  // DoubleSided or AutoDetect — both require batch 2
+        {
+            SessionState = ScanSessionState.Batch1Complete;
+            StatusMessage = $"Batch 1 complete ({_session.Batch1.Count} pages). Now scan the other side.";
+        }
         return Task.CompletedTask;
     }
     // Enabled from both Batch1Paused (normal) and Batch1Error (error recovery)
@@ -152,7 +182,7 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanDoneBatch2))]
     private Task DoneBatch2()
     {
-        // Go directly to MergeReady — no need for intermediate Batch2Complete state
+        BuildMergedThumbnails();
         SessionState = ScanSessionState.MergeReady;
         StatusMessage = $"Batch 2 complete ({_session.Batch2.Count} pages). Ready to merge.";
 
@@ -188,7 +218,10 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
 
         StatusMessage = "Building PDF…";
 
-        var mergedPages = GetMergedPages();
+        var mergedPages = Thumbnails
+            .Where(t => t.ScannedPage != null)
+            .Select(t => t.ScannedPage!)
+            .ToList();
         var options = new PdfBuildOptions
         {
             Format = PdfFormat,
@@ -322,6 +355,22 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     // Called by the View after MergeDocumentCommand to actually save the PDF
     public List<ScannedPage> GetMergedPages() => _session.BuildMergedPages();
 
+    private void BuildMergedThumbnails()
+    {
+        var merged = _session.BuildMergedPages();
+        Thumbnails.Clear();
+        for (int i = 0; i < merged.Count; i++)
+        {
+            Thumbnails.Add(new PageThumbnailViewModel
+            {
+                ImagePath = merged[i].ImagePath,
+                PageNumber = i + 1,
+                SourceLabel = merged[i].SourceBatch == 1 ? "Front" : "Back",
+                ScannedPage = merged[i]
+            });
+        }
+    }
+
     [RelayCommand]
     private async Task ReplacePage(PageThumbnailViewModel thumb)
     {
@@ -345,6 +394,39 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         {
             StatusMessage = $"Could not scan replacement page: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    private void MovePageToBeginning(PageThumbnailViewModel thumb)
+    {
+        int idx = Thumbnails.IndexOf(thumb);
+        if (idx <= 0) return;
+        Thumbnails.Move(idx, 0);
+        RenumberThumbnails();
+    }
+
+    [RelayCommand]
+    private void MovePageToEnd(PageThumbnailViewModel thumb)
+    {
+        int idx = Thumbnails.IndexOf(thumb);
+        if (idx < 0 || idx == Thumbnails.Count - 1) return;
+        Thumbnails.Move(idx, Thumbnails.Count - 1);
+        RenumberThumbnails();
+    }
+
+    [RelayCommand]
+    private void RemoveScanPage(PageThumbnailViewModel thumb)
+    {
+        int idx = Thumbnails.IndexOf(thumb);
+        if (idx < 0) return;
+        Thumbnails.RemoveAt(idx);
+        RenumberThumbnails();
+    }
+
+    private void RenumberThumbnails()
+    {
+        for (int i = 0; i < Thumbnails.Count; i++)
+            Thumbnails[i].PageNumber = i + 1;
     }
 
     [RelayCommand(CanExecute = nameof(CanDoneCurrentBatch))]

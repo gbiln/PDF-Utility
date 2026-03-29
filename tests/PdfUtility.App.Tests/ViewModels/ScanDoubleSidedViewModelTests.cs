@@ -57,6 +57,7 @@ public class ScanDoubleSidedViewModelTests
         fake.BatchQueue.Enqueue(["p1.png"]);
         var vm = CreateVm(fake);
         vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.DoubleSided;
         await vm.StartBatch1Command.ExecuteAsync(null);
 
         await vm.DoneBatch1Command.ExecuteAsync(null);
@@ -159,6 +160,7 @@ public class ScanDoubleSidedViewModelTests
         fake.NextScanError = new ScannerException("Jam");
         var vm = CreateVm(fake);
         vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.DoubleSided;
         await vm.StartBatch1Command.ExecuteAsync(null);
         Assert.Equal(ScanSessionState.Batch1Error, vm.SessionState);
 
@@ -176,6 +178,7 @@ public class ScanDoubleSidedViewModelTests
         fake.BatchQueue.Enqueue(new List<string> { "batch2/page_0000.png" });
         var vm = CreateVm(fake);
         vm.SelectedDevice = "Fake Scanner";  // required: CanStartBatch1 is false without this
+        vm.ScanMode = ScanMode.DoubleSided;
 
         // Act — DoneCurrentBatchCommand dispatches correctly from both Batch1Paused and Batch2Paused
         await vm.StartBatch1Command.ExecuteAsync(null);
@@ -210,6 +213,7 @@ public class ScanDoubleSidedViewModelTests
         });
         var vm = CreateVm(fake);
         vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.DoubleSided;
 
         await vm.StartBatch1Command.ExecuteAsync(null);
         await vm.DoneCurrentBatchCommand.ExecuteAsync(null);
@@ -337,5 +341,116 @@ public class ScanDoubleSidedViewModelTests
         Assert.Null(vm.SelectedDevice);
         Assert.Empty(vm.AvailableDevices);
         Assert.Contains("Could not enumerate scanners", vm.StatusMessage);
+    }
+
+    [Fact]
+    public async Task DoneBatch1_SingleSidedMode_TransitionsDirectlyToMergeReady()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["p1.png", "p2.png"]);
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.SingleSided;
+        await vm.StartBatch1Command.ExecuteAsync(null);
+
+        await vm.DoneBatch1Command.ExecuteAsync(null);
+
+        Assert.Equal(ScanSessionState.MergeReady, vm.SessionState);
+        Assert.Equal(2, vm.Thumbnails.Count);
+    }
+
+    [Fact]
+    public async Task DoneBatch1_DoubleSidedMode_TransitionsToBatch1Complete()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["p1.png"]);
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.DoubleSided;
+        await vm.StartBatch1Command.ExecuteAsync(null);
+
+        await vm.DoneBatch1Command.ExecuteAsync(null);
+
+        Assert.Equal(ScanSessionState.Batch1Complete, vm.SessionState);
+    }
+
+    [Fact]
+    public async Task DoneBatch1_AutoDetectMode_TransitionsToBatch1Complete()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["p1.png"]);
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.AutoDetect;
+        await vm.StartBatch1Command.ExecuteAsync(null);
+
+        await vm.DoneBatch1Command.ExecuteAsync(null);
+
+        Assert.Equal(ScanSessionState.Batch1Complete, vm.SessionState);
+    }
+
+    [Fact]
+    public async Task MovePageToBeginning_MovesLastPageToFirst()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["p1.png"]);
+        fake.BatchQueue.Enqueue(["p2.png"]);
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.DoubleSided;
+        await vm.StartBatch1Command.ExecuteAsync(null);
+        await vm.DoneBatch1Command.ExecuteAsync(null);
+        await vm.ScanOtherSideCommand.ExecuteAsync(null);
+        await vm.DoneBatch2Command.ExecuteAsync(null);
+        Assert.Equal(ScanSessionState.MergeReady, vm.SessionState);
+        var last = vm.Thumbnails[^1];
+
+        vm.MovePageToBeginningCommand.Execute(last);
+
+        Assert.Equal(last, vm.Thumbnails[0]);
+        Assert.Equal(1, vm.Thumbnails[0].PageNumber);
+    }
+
+    [Fact]
+    public async Task MovePageToEnd_MovesFirstPageToLast()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["p1.png"]);
+        fake.BatchQueue.Enqueue(["p2.png"]);
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.DoubleSided;
+        await vm.StartBatch1Command.ExecuteAsync(null);
+        await vm.DoneBatch1Command.ExecuteAsync(null);
+        await vm.ScanOtherSideCommand.ExecuteAsync(null);
+        await vm.DoneBatch2Command.ExecuteAsync(null);
+        var first = vm.Thumbnails[0];
+
+        vm.MovePageToEndCommand.Execute(first);
+
+        Assert.Equal(first, vm.Thumbnails[^1]);
+        Assert.Equal(vm.Thumbnails.Count, vm.Thumbnails[^1].PageNumber);
+    }
+
+    [Fact]
+    public async Task RemoveScanPage_RemovesPageAndRenumbers()
+    {
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(["p1.png"]);
+        fake.BatchQueue.Enqueue(["p2.png"]);
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+        vm.ScanMode = ScanMode.DoubleSided;
+        await vm.StartBatch1Command.ExecuteAsync(null);
+        await vm.DoneBatch1Command.ExecuteAsync(null);
+        await vm.ScanOtherSideCommand.ExecuteAsync(null);
+        await vm.DoneBatch2Command.ExecuteAsync(null);
+        int originalCount = vm.Thumbnails.Count;
+        var toRemove = vm.Thumbnails[0];
+
+        vm.RemoveScanPageCommand.Execute(toRemove);
+
+        Assert.Equal(originalCount - 1, vm.Thumbnails.Count);
+        Assert.Equal(1, vm.Thumbnails[0].PageNumber);
     }
 }

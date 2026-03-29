@@ -9,5 +9,6 @@
     <Project Path="tests/PdfUtility.App.Tests/PdfUtility.App.Tests.csproj" />
     <Project Path="tests/PdfUtility.Core.Tests/PdfUtility.Core.Tests.csproj" />
     <Project Path="tests/PdfUtility.Pdf.Tests/PdfUtility.Pdf.Tests.csproj" />
+    <Project Path="tests/PdfUtility.Scanning.Tests/PdfUtility.Scanning.Tests.csproj" />
   </Folder>
 </Solution>

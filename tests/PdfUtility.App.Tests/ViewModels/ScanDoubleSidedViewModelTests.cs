@@ -168,6 +168,68 @@ public class ScanDoubleSidedViewModelTests
     }
 
     [Fact]
+    public async Task MergedPages_Batch1AndBatch2_HaveDistinctSubdirectories()
+    {
+        // Arrange — fake scanner yields one front page then one back page
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(new List<string> { "batch1/page_0000.png" });
+        fake.BatchQueue.Enqueue(new List<string> { "batch2/page_0000.png" });
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";  // required: CanStartBatch1 is false without this
+
+        // Act — DoneCurrentBatchCommand dispatches correctly from both Batch1Paused and Batch2Paused
+        await vm.StartBatch1Command.ExecuteAsync(null);
+        await vm.DoneCurrentBatchCommand.ExecuteAsync(null);
+        await vm.ScanOtherSideCommand.ExecuteAsync(null);
+        await vm.DoneCurrentBatchCommand.ExecuteAsync(null);
+
+        var merged = vm.GetMergedPages();
+
+        // Assert — both pages exist and are in distinct subdirectories
+        Assert.Equal(2, merged.Count);
+        Assert.Contains("batch1", merged[0].ImagePath, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("batch2", merged[1].ImagePath, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("batch2", merged[0].ImagePath, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("batch1", merged[1].ImagePath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MergedPages_TwoSheets_DoesNotDuplicateImages()
+    {
+        // Arrange — two fronts, two backs (ADF-reversed order)
+        var fake = new FakeScannerBackend();
+        fake.BatchQueue.Enqueue(new List<string>
+        {
+            "batch1/page_0000.png",  // front of sheet 1
+            "batch1/page_0001.png",  // front of sheet 2
+        });
+        fake.BatchQueue.Enqueue(new List<string>
+        {
+            "batch2/page_0000.png",  // back of sheet 2 (ADF reversal — last sheet scanned first)
+            "batch2/page_0001.png",  // back of sheet 1
+        });
+        var vm = CreateVm(fake);
+        vm.SelectedDevice = "Fake Scanner";
+
+        await vm.StartBatch1Command.ExecuteAsync(null);
+        await vm.DoneCurrentBatchCommand.ExecuteAsync(null);
+        await vm.ScanOtherSideCommand.ExecuteAsync(null);
+        await vm.DoneCurrentBatchCommand.ExecuteAsync(null);
+
+        var merged = vm.GetMergedPages();
+
+        // 4 distinct image paths — no duplicates
+        Assert.Equal(4, merged.Count);
+        Assert.Equal(4, merged.Select(p => p.ImagePath).Distinct().Count());
+
+        // Correct interleave order: F1, B1, F2, B2
+        Assert.Equal("batch1/page_0000.png", merged[0].ImagePath); // front sheet 1
+        Assert.Equal("batch2/page_0001.png", merged[1].ImagePath); // back sheet 1 (reversed)
+        Assert.Equal("batch1/page_0001.png", merged[2].ImagePath); // front sheet 2
+        Assert.Equal("batch2/page_0000.png", merged[3].ImagePath); // back sheet 2 (reversed)
+    }
+
+    [Fact]
     public async Task GetDevices_ReturnsSimulatedList()
     {
         var fake = new FakeScannerBackend();

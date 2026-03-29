@@ -15,9 +15,21 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     private readonly IScannerBackend _scanner;
     private readonly IPdfBuilder _pdfBuilder;
     private readonly IUserSettings _userSettings;
-    private readonly MainViewModel _mainViewModel;
     private ScanSession _session = new();
     private string _sessionDirectory = string.Empty;
+
+    // ── Scan settings (moved from MainViewModel toolbar) ─────────────────
+    [ObservableProperty] private int _scanDpi = 300;
+    [ObservableProperty] private ColorMode _colorMode = ColorMode.Color;
+    [ObservableProperty] private PaperSize _paperSize = PaperSize.Letter;
+    [ObservableProperty] private PdfFormat _pdfFormat = PdfFormat.Standard;
+    [ObservableProperty] private ScanMode _scanMode = ScanMode.DoubleSided;
+
+    public int[] DpiOptions { get; } = [150, 300, 600];
+    public ColorMode[] ColorModeOptions { get; } = Enum.GetValues<ColorMode>();
+    public PaperSize[] PaperSizeOptions { get; } = [PaperSize.Letter, PaperSize.Legal];
+    public PdfFormat[] PdfFormatOptions { get; } = Enum.GetValues<PdfFormat>();
+    public ScanMode[] ScanModeOptions { get; } = Enum.GetValues<ScanMode>();
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartBatch1Command))]
@@ -63,20 +75,18 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
     public ScanDoubleSidedViewModel(
         IScannerBackend scanner,
         IPdfBuilder pdfBuilder,
-        IUserSettings userSettings,
-        MainViewModel mainViewModel)
+        IUserSettings userSettings)
     {
         _scanner = scanner;
         _pdfBuilder = pdfBuilder;
         _userSettings = userSettings;
-        _mainViewModel = mainViewModel;
     }
 
     private ScanOptions BuildCurrentScanOptions() => new()
     {
-        Dpi = _mainViewModel.ScanDpi,
-        ColorMode = _mainViewModel.ColorMode,
-        PaperSize = _mainViewModel.PaperSize
+        Dpi = ScanDpi,
+        ColorMode = ColorMode,
+        PaperSize = PaperSize
     };
 
     partial void OnSelectedDeviceChanged(string? value) => _scanner.SelectDevice(value);
@@ -181,9 +191,9 @@ public partial class ScanDoubleSidedViewModel : ObservableObject
         var mergedPages = GetMergedPages();
         var options = new PdfBuildOptions
         {
-            Format = prefs.PdfFormat,
-            JpegQuality = prefs.JpegQuality,
-            PaperSize = prefs.PaperSize
+            Format = PdfFormat,
+            JpegQuality = 85,
+            PaperSize = PaperSize.AutoDetect
         };
 
         try

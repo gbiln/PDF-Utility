@@ -14,6 +14,7 @@ public class Naps2ScannerBackend : IScannerBackend, IDisposable
     private ScanningContext? _context;
     private ScanController? _controller;
     private ScanDevice? _selectedDevice;
+    private IList<ScanDevice> _knownDevices = [];
     private bool _disposed;
 
     public async Task InitialiseAsync()
@@ -22,18 +23,27 @@ public class Naps2ScannerBackend : IScannerBackend, IDisposable
         _context.SetUpWin32Worker();
         _controller = new ScanController(_context);
 
-        // Enumerate devices on background thread to pre-warm WIA
-        var devices = await _controller.GetDeviceList(
+        // Pre-warm: enumerate devices so the first GetDevicesAsync call is fast
+        _knownDevices = await _controller.GetDeviceList(
             new NAPS2.Scan.ScanOptions { Driver = Driver.Wia });
-        _selectedDevice = devices.FirstOrDefault();
+        _selectedDevice = _knownDevices.FirstOrDefault();
     }
 
-    public async Task<IReadOnlyList<string>> GetAvailableDevicesAsync()
+    public async Task<IReadOnlyList<string>> GetDevicesAsync(CancellationToken cancellationToken = default)
     {
         EnsureInitialised();
-        var devices = await _controller!.GetDeviceList(
+        // CancellationToken not forwarded — NAPS2 GetDeviceList does not accept one
+        _knownDevices = await _controller!.GetDeviceList(
             new NAPS2.Scan.ScanOptions { Driver = Driver.Wia });
-        return devices.Select(d => d.Name).ToList();
+        return _knownDevices.Select(d => d.Name).ToList();
+    }
+
+    public void SelectDevice(string? deviceName)
+    {
+        EnsureInitialised();
+        _selectedDevice = deviceName == null
+            ? null
+            : _knownDevices.FirstOrDefault(d => d.Name == deviceName);
     }
 
     public async IAsyncEnumerable<ScannedPage> ScanBatchAsync(
@@ -52,8 +62,6 @@ public class Naps2ScannerBackend : IScannerBackend, IDisposable
         Exception? scanException = null;
         int index = startingPageIndex;
 
-        // Run the scanning loop on a background task so the channel reader can yield
-        // pages as they arrive without being blocked by the try/catch requirement.
         var scanTask = Task.Run(async () =>
         {
             try
@@ -69,18 +77,16 @@ public class Naps2ScannerBackend : IScannerBackend, IDisposable
                     index++;
                 }
             }
-            catch (OperationCanceledException) { /* cancellation propagates via channel */ }
+            catch (OperationCanceledException) { }
             catch (ScannerException ex) { scanException = ex; }
             catch (Exception ex) { scanException = new ScannerException($"Scanner error: {ex.Message}", ex); }
             finally { channel.Writer.Complete(); }
-        }, CancellationToken.None); // Don't cancel the Task.Run itself; let the inner loop handle it
+        }, CancellationToken.None);
 
         await foreach (var page in channel.Reader.ReadAllAsync(cancellationToken))
-        {
             yield return page;
-        }
 
-        await scanTask; // Propagate any unhandled task exceptions
+        await scanTask;
         if (scanException != null) throw scanException;
     }
 
@@ -106,20 +112,13 @@ public class Naps2ScannerBackend : IScannerBackend, IDisposable
                     image.Save(imagePath, ImageFileFormat.Png, new ImageSaveOptions());
                     return new ScannedPage(imagePath, sourceBatch: batchNumber);
                 }
-                finally
-                {
-                    image.Dispose();
-                }
+                finally { image.Dispose(); }
             }
-
             throw new ScannerException("Flatbed scan produced no image. Ensure a document is on the glass.");
         }
         catch (OperationCanceledException) { throw; }
         catch (ScannerException) { throw; }
-        catch (Exception ex)
-        {
-            throw new ScannerException($"Scanner error: {ex.Message}", ex);
-        }
+        catch (Exception ex) { throw new ScannerException($"Scanner error: {ex.Message}", ex); }
     }
 
     private NAPS2.Scan.ScanOptions BuildNaps2Options(ScanOptions options, PaperSource source)

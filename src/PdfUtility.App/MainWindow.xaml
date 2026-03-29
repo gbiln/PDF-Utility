@@ -14,29 +14,7 @@
         </Grid.RowDefinitions>
 
         <!-- Toolbar -->
-        <ui:TitleBar Grid.Row="0" Title="PDF Utility">
-            <ui:TitleBar.TrailingContent>
-                <StackPanel Orientation="Horizontal" Margin="0,0,8,0" VerticalAlignment="Center">
-                    <TextBlock Text="DPI:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <ComboBox ItemsSource="{Binding DpiOptions}"
-                              SelectedItem="{Binding ScanDpi}"
-                              Width="70" Margin="0,0,12,0"/>
-                    <TextBlock Text="Color:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <ComboBox ItemsSource="{Binding ColorModeOptions}"
-                              SelectedItem="{Binding ColorMode}"
-                              Width="100" Margin="0,0,12,0"/>
-                    <TextBlock Text="PDF:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <ComboBox ItemsSource="{Binding PdfFormatOptions}"
-                              SelectedItem="{Binding PdfFormat}"
-                              Width="90" Margin="0,0,12,0"/>
-                    <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <ComboBox ItemsSource="{Binding PaperSizeOptions}"
-                              SelectedItem="{Binding PaperSize}"
-                              Width="90" Margin="0,0,12,0"/>
-                    <ui:Button Content="⚙ Settings" Margin="0,0,4,0"/>
-                </StackPanel>
-            </ui:TitleBar.TrailingContent>
-        </ui:TitleBar>
+        <ui:TitleBar Grid.Row="0" Title="PDF Utility"/>
 
         <!-- Tab content -->
         <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}">

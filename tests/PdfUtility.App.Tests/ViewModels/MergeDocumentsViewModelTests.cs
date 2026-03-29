@@ -226,6 +226,19 @@ public class MergeDocumentsViewModelTests
         Assert.True(vm.AddFilesCommand.CanExecute(null));
     }
 
+    [Fact]
+    public async Task AddFilesCommand_EnabledInPagesLoaded()
+    {
+        var importer = new FakePdfImporter();
+        importer.ImportQueue.Enqueue([MakePage("p1.png", 0)]);
+        var vm = CreateVm(importer);
+        vm.AddFilesCommand.Execute(new[] { "a.pdf" });
+        await vm.LoadPagesCommand.ExecuteAsync(null);
+        Assert.Equal(MergeSessionState.PagesLoaded, vm.SessionState);
+
+        Assert.True(vm.AddFilesCommand.CanExecute(null));
+    }
+
     // ── StatusMessage and ErrorMessage clearing ───────────────────────
 
     [Fact]

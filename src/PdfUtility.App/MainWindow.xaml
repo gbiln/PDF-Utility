@@ -44,9 +44,7 @@
                 <views:ScanDoubleSidedView/>
             </TabItem>
             <TabItem Header="Merge Documents">
-                <TextBlock Text="Merge Documents — coming in Plan 2"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Foreground="Gray"/>
+                <views:MergeDocumentsView/>
             </TabItem>
         </TabControl>
     </Grid>
